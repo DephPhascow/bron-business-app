@@ -1,0 +1,46 @@
+query BusinessWorkspace($businessId: Int!, $lang: String!) {
+  business(pk: $businessId) {
+    pk
+    name
+    logoUrl
+    contactPhone
+    address(lang: $lang)
+    employees {
+      pk
+      role
+      isActive
+      user {
+        fullName
+        phone
+        email
+      }
+    }
+    services {
+      pk
+      name(lang: $lang)
+      cost
+      durations
+      isActive
+    }
+    galleryImages {
+      pk
+      imageUrl
+    }
+    bookings {
+      pk
+      bookingDate
+      employeeId
+      status
+      user {
+        fullName
+      }
+      services {
+        service {
+          pk
+          name(lang: $lang)
+        }
+      }
+    }
+  }
+}
+

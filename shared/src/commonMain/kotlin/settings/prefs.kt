@@ -8,26 +8,120 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 class Prefs(
     private val s: com.russhwolf.settings.Settings = SettingsProvider.get()
 ) {
+    private val _lang = MutableStateFlow(s.getStringOrNull("lang"))
+
     var lang: String?            // "ru" / "uz" / null (= системный)
-        get() = s.getStringOrNull("lang")
-        set(v) = if (v == null) s.remove("lang") else s.putString("lang", v)
+        get() = _lang.value
+        set(v) {
+            if (v == null) s.remove("lang") else s.putString("lang", v)
+            _lang.value = v
+        }
+
+    private val _theme = MutableStateFlow(runCatching {
+        ThemeMode.valueOf(s.getString("theme", ThemeMode.SYSTEM.name))
+    }.getOrDefault(ThemeMode.SYSTEM))
 
     var theme: ThemeMode
-        get() = s.getString("theme", ThemeMode.SYSTEM.name).let { ThemeMode.valueOf(it) }
-        set(v) = s.putString("theme", v.name)
+        get() = _theme.value
+        set(v) {
+            s.putString("theme", v.name)
+            _theme.value = v
+        }
 
-    // TODO временно, затем сделать защищенное хранение
-    private val _accessToken = MutableStateFlow<String?>(null)
+    // TODO затем сделать защищенное хранение
+    private val _accessToken = MutableStateFlow(s.getStringOrNull("accessToken"))
     val accessTokenFlow: StateFlow<String?> = _accessToken
 
-    private val _refreshToken = MutableStateFlow<String?>(null)
+    private val _refreshToken = MutableStateFlow(s.getStringOrNull("refreshToken"))
     val refreshTokenFlow: StateFlow<String?> = _refreshToken
+
+    private val _selectedBusinessId = MutableStateFlow(s.getStringOrNull("selectedBusinessId"))
+    val selectedBusinessIdFlow: StateFlow<String?> = _selectedBusinessId
+
+    private val _selectedBusinessName = MutableStateFlow(s.getStringOrNull("selectedBusinessName"))
+    val selectedBusinessNameFlow: StateFlow<String?> = _selectedBusinessName
+
+    private val _selectedBusinessRole = MutableStateFlow(s.getStringOrNull("selectedBusinessRole"))
+    val selectedBusinessRoleFlow: StateFlow<String?> = _selectedBusinessRole
+
+    private val _lastLoginEmail = MutableStateFlow(s.getStringOrNull("lastLoginEmail"))
+    val lastLoginEmailFlow: StateFlow<String?> = _lastLoginEmail
+
+    private val _rememberBusinessSelection = MutableStateFlow(s.getBoolean("rememberBusinessSelection", false))
+    val rememberBusinessSelectionFlow: StateFlow<Boolean> = _rememberBusinessSelection
+
+    private val _rememberedBusinessId = MutableStateFlow(s.getStringOrNull("rememberedBusinessId"))
+    val rememberedBusinessIdFlow: StateFlow<String?> = _rememberedBusinessId
 
     var accessToken: String?
         get() = _accessToken.value
-        set(v) { _accessToken.value = v }
+        set(v) {
+            if (v == null) s.remove("accessToken") else s.putString("accessToken", v)
+            _accessToken.value = v
+        }
 
     var refreshToken: String?
         get() = _refreshToken.value
-        set(v) { _refreshToken.value = v }
+        set(v) {
+            if (v == null) s.remove("refreshToken") else s.putString("refreshToken", v)
+            _refreshToken.value = v
+        }
+
+    var selectedBusinessId: String?
+        get() = _selectedBusinessId.value
+        set(v) {
+            if (v == null) s.remove("selectedBusinessId") else s.putString("selectedBusinessId", v)
+            _selectedBusinessId.value = v
+        }
+
+    var selectedBusinessName: String?
+        get() = _selectedBusinessName.value
+        set(v) {
+            if (v == null) s.remove("selectedBusinessName") else s.putString("selectedBusinessName", v)
+            _selectedBusinessName.value = v
+        }
+
+    var selectedBusinessRole: String?
+        get() = _selectedBusinessRole.value
+        set(v) {
+            if (v == null) s.remove("selectedBusinessRole") else s.putString("selectedBusinessRole", v)
+            _selectedBusinessRole.value = v
+        }
+
+    var lastLoginEmail: String?
+        get() = _lastLoginEmail.value
+        set(v) {
+            if (v == null) s.remove("lastLoginEmail") else s.putString("lastLoginEmail", v)
+            _lastLoginEmail.value = v
+        }
+
+    var rememberBusinessSelection: Boolean
+        get() = _rememberBusinessSelection.value
+        set(v) {
+            s.putBoolean("rememberBusinessSelection", v)
+            _rememberBusinessSelection.value = v
+        }
+
+    var rememberedBusinessId: String?
+        get() = _rememberedBusinessId.value
+        set(v) {
+            if (v == null) s.remove("rememberedBusinessId") else s.putString("rememberedBusinessId", v)
+            _rememberedBusinessId.value = v
+        }
+
+    fun clearRememberedBusiness() {
+        rememberedBusinessId = null
+    }
+
+    fun clearSelectedBusiness() {
+        selectedBusinessId = null
+        selectedBusinessName = null
+        selectedBusinessRole = null
+    }
+
+    fun clearAuthSession() {
+        accessToken = null
+        refreshToken = null
+        clearSelectedBusiness()
+    }
 }

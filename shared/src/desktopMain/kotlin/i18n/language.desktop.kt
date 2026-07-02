@@ -1,11 +1,12 @@
 package i18n
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 
 @Composable
 actual fun ProvideAppLocale(
     langTag: String?,
     content: @Composable (() -> Unit)
 ) {
-    TODO("Not yet implemented")
+    key(langTag) { content() }
 }

@@ -1,0 +1,55 @@
+mutation TokenAuth($email: String!, $password: String!) {
+  tokenAuth(input: { email: $email, password: $password }) {
+    accessToken
+    refreshToken
+    user {
+      pk
+      email
+      fullName
+      businesses {
+        pk
+        name
+        ownerId
+      }
+      workedAsEmployee {
+        pk
+        role
+        business {
+          pk
+          name
+          ownerId
+        }
+      }
+    }
+  }
+}
+
+query MeForAuth {
+  meForAuth {
+    pk
+    email
+    fullName
+    businesses {
+      pk
+      name
+      ownerId
+    }
+    workedAsEmployee {
+      pk
+      role
+      business {
+        pk
+        name
+        ownerId
+      }
+    }
+  }
+}
+
+mutation AddBusiness($name: String!) {
+  addBusiness(name: $name) {
+    pk
+    name
+    ownerId
+  }
+}
