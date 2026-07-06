@@ -1,68 +1,36 @@
-package com.dphascow.messenger.repositories
+package com.dphascow.app.repositories
 
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.ApolloResponse
 import com.dphascow.BuildKonfig
-import com.dphascow.graphql.RefreshTokenMutation
-import com.dphascow.graphql.RegistrationMutation
-import com.dphascow.graphql.ResendCodeMutation
-import com.dphascow.graphql.TokenAuthMutation
-import com.dphascow.graphql.VerifyCodeMutation
-import com.dphascow.graphql.type.AuthInput
-import com.dphascow.graphql.type.CreateUserInput
-import com.dphascow.messenger.Screens
-import com.dphascow.messenger.expects.PlatformLogger
-import settings.AuthPref
+import com.dphascow.app.graphql.AddBusinessMutation
+import com.dphascow.app.graphql.MeForAuthQuery
+import com.dphascow.app.graphql.TokenAuthMutation
 
-class AuthRepository(prefs: AuthPref) {
-    private val logger = PlatformLogger("GRAPHQL")
-
-    private val apollo = ApolloClient.Builder()
+/**
+ * Low-level GraphQL client for authentication operations.
+ *
+ * - Public operations (login, meForAuth with explicit token) use a raw ApolloClient.
+ * - Authenticated mutations (addBusiness) go through [Requester] for auto token refresh.
+ */
+class ApiAuthClient(
+    private val requester: Requester,
+) {
+    private val publicClient: ApolloClient = ApolloClient.Builder()
         .serverUrl(BuildKonfig.API_URL)
-        .addHttpHeader("Authorization", "Bearer ${prefs.accessToken ?: ""}")
         .build()
 
-    suspend fun login(email: String, password: String): ApolloResponse<TokenAuthMutation.Data> {
-        val mutation = TokenAuthMutation(
-            input = AuthInput(
-                email = email,
-                password = password
-            )
-        )
-        logger.log("mutation: $mutation")
-        val response: ApolloResponse<TokenAuthMutation.Data> = apollo.mutation(mutation).execute()
-        logger.log("Errors: ${response.errors.toString()}")
-        logger.log("Exceptions: ${response.exception.toString()}")
-        return response
-    }
-    suspend fun registration(email: String, password: String, firstName: String): ApolloResponse<RegistrationMutation.Data> {
-        val mutation = RegistrationMutation(
-            input = CreateUserInput(
-                email = email,
-                password = password,
-                firstName = firstName
-            )
-        )
-        logger.log("mutation: $mutation")
-        val response: ApolloResponse<RegistrationMutation.Data> = apollo.mutation(mutation).execute()
-        logger.log("Errors: ${response.errors.toString()}")
-        logger.log("Exceptions: ${response.exception.toString()}")
-        return response
-    }
-    suspend fun verifyCode(email: String, code: String): ApolloResponse<VerifyCodeMutation.Data> {
-        val mutation = VerifyCodeMutation(email = email, code = code)
-        logger.log("mutation: $mutation")
-        val response: ApolloResponse<VerifyCodeMutation.Data> = apollo.mutation(mutation).execute()
-        logger.log("Errors: ${response.errors.toString()}")
-        logger.log("Exceptions: ${response.exception.toString()}")
-        return response
-    }
-    suspend fun resendCode(email: String): ApolloResponse<ResendCodeMutation.Data> {
-        val mutation = ResendCodeMutation(email = email)
-        logger.log("mutation: $mutation")
-        val response: ApolloResponse<ResendCodeMutation.Data> = apollo.mutation(mutation).execute()
-        logger.log("Errors: ${response.errors.toString()}")
-        logger.log("Exceptions: ${response.exception.toString()}")
-        return response
-    }
+    suspend fun tokenAuth(
+        email: String,
+        password: String,
+    ): ApolloResponse<TokenAuthMutation.Data> =
+        publicClient.mutation(TokenAuthMutation(email = email, password = password)).execute()
+
+    suspend fun meForAuth(token: String): ApolloResponse<MeForAuthQuery.Data> =
+        publicClient.query(MeForAuthQuery())
+            .addHttpHeader("Authorization", "Bearer $token")
+            .execute()
+
+    suspend fun addBusiness(name: String): ApolloResponse<AddBusinessMutation.Data> =
+        requester.requestMutation(AddBusinessMutation(name = name))
 }

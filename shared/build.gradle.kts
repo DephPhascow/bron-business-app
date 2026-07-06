@@ -93,21 +93,6 @@ buildkonfig {
     }
 }
 
-apollo {
-    service("service") {
-        // схема/endpoint при генерации типов не обязательны, но можно настроить
-        packageName.set("com.dphascow.graphql")
-        srcDir("src/commonMain/kotlin/graphql")
-        schemaFile.set(file("src/commonMain/kotlin/graphql/schema.json"))
-        // optional: introspection, schema file etc.
-        introspection {
-            endpointUrl.set(apiUrl.replace("10.0.2.2", "localhost"))
-        }
-        mapScalarToKotlinString("DateTime")
-//        mapScalarToKotlinString("Date")
-    }
-}
-
 kotlin {
     androidTarget {
         compilations.all {

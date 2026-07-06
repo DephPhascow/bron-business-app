@@ -1,4 +1,4 @@
-package com.dphascow.messenger.repositories
+package com.dphascow.app.repositories
 
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.ApolloResponse

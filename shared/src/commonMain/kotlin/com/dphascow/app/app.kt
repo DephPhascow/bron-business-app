@@ -37,15 +37,27 @@ import com.dphascow.app.resources.common_loading
 @Composable
 fun App() {
     val prefs = remember { Prefs() }
-    val coordinator = remember { AppCoordinator(prefs, AppDependencies.createAuthRepository(prefs)) }
-    val businessWorkspaceRepository = remember { AppDependencies.createBusinessWorkspaceRepository(prefs) }
     val scope = rememberCoroutineScope()
     var lang by remember { mutableStateOf(prefs.lang ?: "ru") } // TODO get default lang
     var theme by remember { mutableStateOf(prefs.theme) } // TODO get default theme
-    val state by coordinator.state.collectAsState()
+
+    // Requester is created with a deferred auth-error callback so that
+    // coordinator (created below) can be referenced from the lambda.
+    var onAuthError: (() -> Unit)? by remember { mutableStateOf(null) }
+    val requester = remember { AppDependencies.createRequester(prefs) { onAuthError?.invoke() } }
+    val coordinator = remember {
+        AppCoordinator(prefs, AppDependencies.createAuthRepository(requester))
+    }
+    val businessWorkspaceRepository = remember { AppDependencies.createBusinessWorkspaceRepository(requester) }
+
+    LaunchedEffect(Unit) {
+        onAuthError = coordinator::logout
+        coordinator.bootstrap()
+    }
     LaunchedEffect(lang) { prefs.lang = lang }
     LaunchedEffect(theme) { prefs.theme = theme }
-    LaunchedEffect(Unit) { coordinator.bootstrap() }
+
+    val state by coordinator.state.collectAsState()
 
     AppTheme(mode= theme) {
         Surface(

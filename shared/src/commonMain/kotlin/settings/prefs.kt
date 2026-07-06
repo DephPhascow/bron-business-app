@@ -2,12 +2,17 @@ package settings
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+
+@OptIn(ExperimentalTime::class)
+private fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 class Prefs(
     private val s: com.russhwolf.settings.Settings = SettingsProvider.get()
-) {
+) : AuthPref {
     private val _lang = MutableStateFlow(s.getStringOrNull("lang"))
 
     var lang: String?            // "ru" / "uz" / null (= системный)
@@ -53,14 +58,21 @@ class Prefs(
     private val _rememberedBusinessId = MutableStateFlow(s.getStringOrNull("rememberedBusinessId"))
     val rememberedBusinessIdFlow: StateFlow<String?> = _rememberedBusinessId
 
-    var accessToken: String?
+    override var accessToken: String?
         get() = _accessToken.value
         set(v) {
             if (v == null) s.remove("accessToken") else s.putString("accessToken", v)
             _accessToken.value = v
+            accessTokenUpdatedAt = if (v != null) currentTimeMillis() else null
         }
 
-    var refreshToken: String?
+    override var accessTokenUpdatedAt: Long?
+        get() = if (s.hasKey("accessTokenUpdatedAt")) s.getLong("accessTokenUpdatedAt", 0L) else null
+        set(v) {
+            if (v == null) s.remove("accessTokenUpdatedAt") else s.putLong("accessTokenUpdatedAt", v)
+        }
+
+    override var refreshToken: String?
         get() = _refreshToken.value
         set(v) {
             if (v == null) s.remove("refreshToken") else s.putString("refreshToken", v)

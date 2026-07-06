@@ -287,10 +287,6 @@ class AppCoordinator(
     }
 
     private fun validateCredentials(email: String, password: String): AuthError? {
-        if (AuthFeatureFlags.disableStrictValidation) {
-            return null
-        }
-
         if (email.isBlank()) return AuthError.EMPTY_EMAIL
         if (!EMAIL_REGEX.matches(email)) return AuthError.INVALID_EMAIL
         if (password.isBlank()) return AuthError.EMPTY_PASSWORD

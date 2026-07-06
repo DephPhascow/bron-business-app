@@ -24,6 +24,13 @@ mutation TokenAuth($email: String!, $password: String!) {
   }
 }
 
+mutation RefreshToken($refreshToken: String!) {
+  refreshToken(refreshToken: $refreshToken) {
+    accessToken
+    refreshToken
+  }
+}
+
 query MeForAuth {
   meForAuth {
     pk

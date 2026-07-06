@@ -1,4 +1,4 @@
-package com.dphascow.messenger.repositories
+package com.dphascow.app.repositories
 
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.annotations.ApolloExperimental
@@ -10,7 +10,7 @@ import com.apollographql.apollo.api.Subscription
 import com.apollographql.apollo.network.websocket.GraphQLWsProtocol
 import com.apollographql.apollo.network.websocket.WebSocketNetworkTransport
 import com.dphascow.BuildKonfig
-import com.dphascow.messenger.expects.PlatformLogger
+import com.dphascow.app.utils.PlatformLogger
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch

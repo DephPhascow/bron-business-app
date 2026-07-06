@@ -1,29 +1,21 @@
 package com.dphascow.app.auth
 
-import com.apollographql.apollo.ApolloCall
-import com.apollographql.apollo.ApolloClient
-import com.apollographql.apollo.api.Operation
 import com.dphascow.app.expects.PickedPhoto
-import com.dphascow.app.graphql.AddBusinessMutation
 import com.dphascow.app.graphql.MeForAuthQuery
 import com.dphascow.app.graphql.TokenAuthMutation
+import com.dphascow.app.repositories.ApiAuthClient
 
 class ApolloAuthRepository(
-    private val apolloClient: ApolloClient,
-    initialAccessToken: String? = null,
+    private val apiAuthClient: ApiAuthClient,
 ) : AuthRepository {
-    private var accessToken: String? = initialAccessToken
     private var knownBusinesses: List<BusinessOption> = emptyList()
 
     override suspend fun login(email: String, password: String): LoginResult {
-        val response = apolloClient
-            .mutation(TokenAuthMutation(email = email, password = password))
-            .execute()
+        val response = apiAuthClient.tokenAuth(email = email, password = password)
 
         val payload = response.data?.tokenAuth
             ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty login response")
 
-        accessToken = payload.accessToken
         val businesses = payload.user?.toBusinessOptions().orEmpty()
             .ifEmpty { loadAuthorizedBusinesses(payload.accessToken) }
         knownBusinesses = businesses
@@ -43,10 +35,7 @@ class ApolloAuthRepository(
     }
 
     override suspend fun createBusiness(name: String, photo: PickedPhoto?): CreateBusinessResult {
-        val response = apolloClient
-            .mutation(AddBusinessMutation(name = name.trim()))
-            .withBearerToken()
-            .execute()
+        val response = apiAuthClient.addBusiness(name = name.trim())
 
         val business = response.data?.addBusiness
             ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add business response")
@@ -62,21 +51,12 @@ class ApolloAuthRepository(
     }
 
     private suspend fun loadAuthorizedBusinesses(token: String): List<BusinessOption> {
-        val response = apolloClient
-            .query(MeForAuthQuery())
-            .addHttpHeader(AUTHORIZATION_HEADER, bearerValue(token))
-            .execute()
+        val response = apiAuthClient.meForAuth(token = token)
 
         val user = response.data?.meForAuth
             ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty meForAuth response")
 
         return user.toBusinessOptions()
-    }
-
-    private fun <D : Operation.Data> ApolloCall<D>.withBearerToken(): ApolloCall<D> {
-        val token = accessToken?.takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("Access token is missing")
-        return addHttpHeader(AUTHORIZATION_HEADER, bearerValue(token))
     }
 
     private fun TokenAuthMutation.User.toBusinessOptions(): List<BusinessOption> = (
@@ -112,9 +92,6 @@ class ApolloAuthRepository(
     ).distinctBy { it.id }
 
     private companion object {
-        const val AUTHORIZATION_HEADER = "Authorization"
         const val ROLE_OWNER = "OWNER"
-
-        fun bearerValue(token: String): String = "Bearer $token"
     }
 }

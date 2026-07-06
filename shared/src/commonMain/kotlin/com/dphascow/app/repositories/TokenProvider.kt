@@ -1,13 +1,14 @@
-package com.dphascow.messenger.repositories
+package com.dphascow.app.repositories
 
 import com.apollographql.apollo.ApolloClient
 import com.dphascow.BuildKonfig
-import com.dphascow.graphql.RefreshTokenMutation
-import com.dphascow.messenger.expects.PlatformLogger
-import com.dphascow.messenger.utils.currentTimeMillis
+import com.dphascow.app.graphql.RefreshTokenMutation
+import com.dphascow.app.utils.PlatformLogger
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import settings.AuthPref
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class TokenProvider(
     private val authPref: AuthPref
@@ -41,6 +42,9 @@ class TokenProvider(
             authPref.refreshToken = refreshToken
         }
     }
+
+    @OptIn(ExperimentalTime::class)
+    private fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
     private fun isAccessTokenFresh(): Boolean {
         val updatedAt = authPref.accessTokenUpdatedAt ?: return false
