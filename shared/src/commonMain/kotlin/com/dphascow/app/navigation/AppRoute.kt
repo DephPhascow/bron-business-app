@@ -10,7 +10,6 @@ sealed interface AppRoute {
 
     data object Services : AppRoute
     data class ServiceDetails(val serviceId: String) : AppRoute
-    data class ServiceEdit(val serviceId: String? = null) : AppRoute
 
     data object Gallery : AppRoute
     data object GalleryUpload : AppRoute
@@ -19,5 +18,10 @@ sealed interface AppRoute {
     data class OrderDetails(val orderId: String) : AppRoute
 
     data object Analytics : AppRoute
+    data object Reviews : AppRoute
+    data object Account : AppRoute
+
+    data object Chats : AppRoute
+    data class Conversation(val chatId: String) : AppRoute
 }
 

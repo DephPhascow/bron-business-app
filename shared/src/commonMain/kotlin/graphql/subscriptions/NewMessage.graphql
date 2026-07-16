@@ -1,0 +1,6 @@
+subscription NewMessage($token: String!, $chatInstanceId: Int!, $topicId: Int) {
+  newMessage(token: $token, chatInstanceId: $chatInstanceId, topicId: $topicId) {
+    messageId
+    topicId
+  }
+}

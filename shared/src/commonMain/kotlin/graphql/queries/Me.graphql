@@ -1,0 +1,13 @@
+query Me {
+  me {
+    pk
+    firstName
+    lastName
+    patronymic
+    fullName
+    phone
+    email
+    imageUrl
+    confirmNotifications
+  }
+}

@@ -1,0 +1,3 @@
+mutation RequireCode($phoneOrEmail: String!) {
+  requireCode(phoneOrEmail: $phoneOrEmail)
+}

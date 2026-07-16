@@ -1,0 +1,6 @@
+mutation AddFirebaseToken($token: String!) {
+  addFirebaseToken(input: { token: $token }) {
+    pk
+    token
+  }
+}

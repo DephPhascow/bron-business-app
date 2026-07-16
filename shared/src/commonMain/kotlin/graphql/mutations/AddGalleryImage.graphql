@@ -1,0 +1,9 @@
+mutation AddGalleryImage($businessId: Int!, $imageUrl: String!) {
+  addGalleryImage(bussinessId: $businessId, imageUrl: $imageUrl) {
+    pk
+    galleryImages {
+      pk
+      imageUrl
+    }
+  }
+}

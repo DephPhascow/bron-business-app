@@ -1,0 +1,14 @@
+query Services($businessId: Int!, $lang: String!) {
+  services(filters: { employee: { businessId: { equals: $businessId } } }) {
+    pk
+    name(lang: $lang)
+    cost
+    durations
+    isActive
+    employeeId
+    category {
+      pk
+      name(lang: $lang)
+    }
+  }
+}

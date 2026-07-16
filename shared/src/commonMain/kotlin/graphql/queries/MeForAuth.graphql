@@ -1,0 +1,22 @@
+query MeForAuth {
+  meForAuth {
+    pk
+    phone
+    email
+    fullName
+    businesses {
+      pk
+      name
+      ownerId
+    }
+    workedAsEmployee {
+      pk
+      role
+      business {
+        pk
+        name
+        ownerId
+      }
+    }
+  }
+}

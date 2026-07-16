@@ -1,0 +1,26 @@
+mutation VerifyCode($phoneOrEmail: String!, $code: String!) {
+  verifyCode(phoneOrEmail: $phoneOrEmail, code: $code) {
+    accessToken
+    refreshToken
+    user {
+      pk
+      phone
+      email
+      fullName
+      businesses {
+        pk
+        name
+        ownerId
+      }
+      workedAsEmployee {
+        pk
+        role
+        business {
+          pk
+          name
+          ownerId
+        }
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@ package com.dphascow.app.auth
 
 import com.dphascow.app.expects.PickedPhoto
 import com.dphascow.app.graphql.MeForAuthQuery
-import com.dphascow.app.graphql.TokenAuthMutation
+import com.dphascow.app.graphql.VerifyCodeMutation
 import com.dphascow.app.repositories.ApiAuthClient
 
 class ApolloAuthRepository(
@@ -10,11 +10,16 @@ class ApolloAuthRepository(
 ) : AuthRepository {
     private var knownBusinesses: List<BusinessOption> = emptyList()
 
-    override suspend fun login(email: String, password: String): LoginResult {
-        val response = apiAuthClient.tokenAuth(email = email, password = password)
+    override suspend fun requireCode(phoneOrEmail: String): Boolean {
+        val response = apiAuthClient.requireCode(phoneOrEmail = phoneOrEmail)
+        return response.data?.requireCode ?: false
+    }
 
-        val payload = response.data?.tokenAuth
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty login response")
+    override suspend fun verifyCode(phoneOrEmail: String, code: String): LoginResult {
+        val response = apiAuthClient.verifyCode(phoneOrEmail = phoneOrEmail, code = code)
+
+        val payload = response.data?.verifyCode
+            ?: throw IllegalArgumentException(response.errors?.firstOrNull()?.message ?: "Empty verify code response")
 
         val businesses = payload.user?.toBusinessOptions().orEmpty()
             .ifEmpty { loadAuthorizedBusinesses(payload.accessToken) }
@@ -59,7 +64,7 @@ class ApolloAuthRepository(
         return user.toBusinessOptions()
     }
 
-    private fun TokenAuthMutation.User.toBusinessOptions(): List<BusinessOption> = (
+    private fun VerifyCodeMutation.User.toBusinessOptions(): List<BusinessOption> = (
         businesses.map { business ->
             BusinessOption(
                 id = business.pk.toString(),

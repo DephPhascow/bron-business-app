@@ -7,16 +7,21 @@ class MockAuthRepository : AuthRepository {
     private var lastBusinesses: List<BusinessOption> = emptyList()
     private var createdBusinessCounter: Int = 1
 
-    override suspend fun login(email: String, password: String): LoginResult {
+    override suspend fun requireCode(phoneOrEmail: String): Boolean {
+        delay(450)
+        return phoneOrEmail.isNotBlank()
+    }
+
+    override suspend fun verifyCode(phoneOrEmail: String, code: String): LoginResult {
         delay(450)
 
-        val businesses = buildBusinesses(email)
+        val businesses = buildBusinesses(phoneOrEmail)
         lastBusinesses = businesses
 
-        val normalizedEmail = email.trim().lowercase().ifBlank { "mock-user" }
+        val normalizedPhone = phoneOrEmail.trim().ifBlank { "mock-user" }
         return LoginResult(
-            accessToken = "access-$normalizedEmail",
-            refreshToken = "refresh-$normalizedEmail",
+            accessToken = "access-$normalizedPhone",
+            refreshToken = "refresh-$normalizedPhone",
             businesses = businesses,
         )
     }
@@ -25,7 +30,7 @@ class MockAuthRepository : AuthRepository {
         delay(250)
         val business = lastBusinesses.firstOrNull { it.id == businessId }
             ?: lastBusinesses.firstOrNull()
-            ?: buildBusinesses(email = "").first()
+            ?: buildBusinesses(phone = "").first()
 
         return BusinessSelectionResult(business = business)
     }
@@ -45,10 +50,10 @@ class MockAuthRepository : AuthRepository {
         return CreateBusinessResult(business = newBusiness)
     }
 
-    private fun buildBusinesses(email: String): List<BusinessOption> {
-        val normalizedEmail = email.trim().lowercase()
+    private fun buildBusinesses(phone: String): List<BusinessOption> {
+        val normalizedPhone = phone.trim().lowercase()
         return when {
-            normalizedEmail.contains("solo") || normalizedEmail.contains("single") -> listOf(
+            normalizedPhone.contains("solo") || normalizedPhone.contains("single") -> listOf(
                 BusinessOption(
                     id = "business-solo",
                     name = "Solo Studio",
@@ -56,7 +61,7 @@ class MockAuthRepository : AuthRepository {
                 )
             )
 
-            normalizedEmail.contains("owner") -> listOf(
+            normalizedPhone.contains("owner") -> listOf(
                 BusinessOption(
                     id = "business-bron-center",
                     name = "Bron Center",
@@ -84,7 +89,3 @@ class MockAuthRepository : AuthRepository {
         }
     }
 }
-
-
-
-

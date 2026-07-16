@@ -49,8 +49,8 @@ class Prefs(
     private val _selectedBusinessRole = MutableStateFlow(s.getStringOrNull("selectedBusinessRole"))
     val selectedBusinessRoleFlow: StateFlow<String?> = _selectedBusinessRole
 
-    private val _lastLoginEmail = MutableStateFlow(s.getStringOrNull("lastLoginEmail"))
-    val lastLoginEmailFlow: StateFlow<String?> = _lastLoginEmail
+    private val _lastLoginPhone = MutableStateFlow(s.getStringOrNull("lastLoginPhone"))
+    val lastLoginPhoneFlow: StateFlow<String?> = _lastLoginPhone
 
     private val _rememberBusinessSelection = MutableStateFlow(s.getBoolean("rememberBusinessSelection", false))
     val rememberBusinessSelectionFlow: StateFlow<Boolean> = _rememberBusinessSelection
@@ -100,11 +100,11 @@ class Prefs(
             _selectedBusinessRole.value = v
         }
 
-    var lastLoginEmail: String?
-        get() = _lastLoginEmail.value
+    var lastLoginPhone: String?
+        get() = _lastLoginPhone.value
         set(v) {
-            if (v == null) s.remove("lastLoginEmail") else s.putString("lastLoginEmail", v)
-            _lastLoginEmail.value = v
+            if (v == null) s.remove("lastLoginPhone") else s.putString("lastLoginPhone", v)
+            _lastLoginPhone.value = v
         }
 
     var rememberBusinessSelection: Boolean

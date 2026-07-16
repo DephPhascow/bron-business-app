@@ -1,6 +1,6 @@
 [versions]
 activityCompose = "1.11.0"
-agp = "9.2.1"
+agp = "9.3.0"
 apollo = "4.1.1"
 cameraCore = "1.5.1"
 coilCompose = "2.7.0"
@@ -12,6 +12,10 @@ androidx-activityCompose = "1.11.0"
 compose-jb = "1.9.1"
 multiplatformSettings = "1.3.0"
 composecreditcardview = "1.0.1"
+ktor = "3.3.3"
+filekit = "0.12.0"
+firebaseBom = "34.7.0"
+coil3 = "3.1.0"
 [libraries]
 androidx-activity-compose-v190 = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
@@ -33,6 +37,15 @@ multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", vers
 multiplatform-settings-no-arg = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatformSettings" }
 multiplatform-settings-serialization = { module = "com.russhwolf:multiplatform-settings-serialization", version.ref = "multiplatformSettings" }
 composecreditcardview = { group = "com.github.umutsoysl", name = "ComposeCreditCardView", version.ref = "composecreditcardview" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
+filekit-dialogs = { module = "io.github.vinceglb:filekit-dialogs", version.ref = "filekit" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+coil3-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
+coil3-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil3" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

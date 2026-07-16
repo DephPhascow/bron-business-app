@@ -17,7 +17,7 @@ import com.dphascow.app.auth.AppUiState
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.home_business_value
 import com.dphascow.app.resources.home_change_business
-import com.dphascow.app.resources.home_email_value
+import com.dphascow.app.resources.home_phone_value
 import com.dphascow.app.resources.home_logout
 import com.dphascow.app.resources.home_role_value
 import com.dphascow.app.resources.home_title
@@ -65,7 +65,7 @@ fun HomeScreen(
                     style = T.t.t2Regular
                 )
                 Text(
-                    text = stringResource(Res.string.home_email_value, state.email),
+                    text = stringResource(Res.string.home_phone_value, state.phone),
                     color = T.c.dark7,
                     style = T.t.t2Regular
                 )

@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
+    // Push: after adding androidApp/google-services.json, uncomment the line below.
+    // id("com.google.gms.google-services") version "4.5.0"
 }
 
 android {
@@ -46,4 +48,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.androidx.activity.compose.v190)
     implementation(libs.coil.compose)
+    implementation(libs.filekit.dialogs)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 }

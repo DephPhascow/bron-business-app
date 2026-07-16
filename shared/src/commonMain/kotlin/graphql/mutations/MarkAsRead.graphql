@@ -1,0 +1,3 @@
+mutation MarkAsRead($chatInstanceId: Int!, $messageId: Int!) {
+  markAsRead(chatInstanceId: $chatInstanceId, messageId: $messageId)
+}

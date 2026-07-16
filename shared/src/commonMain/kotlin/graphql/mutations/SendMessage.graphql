@@ -1,0 +1,5 @@
+mutation SendMessage($chatInstanceId: Int!, $text: String, $fileUrl: String, $type: MessageEnumType!, $replyToMessageId: Int) {
+  sendMessage(chatInstanceId: $chatInstanceId, text: $text, fileUrl: $fileUrl, type: $type, replyToMessageId: $replyToMessageId) {
+    ...MessageFragment
+  }
+}

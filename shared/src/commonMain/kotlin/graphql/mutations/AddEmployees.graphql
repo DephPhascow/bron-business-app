@@ -1,0 +1,18 @@
+mutation AddEmployees($input: UpdateEmployee!, $lang: String!) {
+  addEmployees(input: $input) {
+    pk
+    role
+    isActive
+    user {
+      pk
+      fullName
+      phone
+      email
+      imageUrl
+    }
+    specialization {
+      pk
+      name(lang: $lang)
+    }
+  }
+}

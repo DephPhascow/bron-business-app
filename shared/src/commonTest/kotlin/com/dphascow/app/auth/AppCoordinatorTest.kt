@@ -24,9 +24,7 @@ class AppCoordinatorTest {
         )
 
         coordinator.bootstrap()
-        coordinator.updateEmail("solo@bron.app")
-        coordinator.updatePassword("123456")
-        coordinator.login()
+        coordinator.authenticate("998901112233")
 
         val state = assertIs<AppUiState.Authorized>(coordinator.state.value)
         assertEquals("Solo Studio", state.business.name)
@@ -47,9 +45,7 @@ class AppCoordinatorTest {
         )
 
         coordinator.bootstrap()
-        coordinator.updateEmail("owner@bron.app")
-        coordinator.updatePassword("123456")
-        coordinator.login()
+        coordinator.authenticate("998901112233")
 
         val state = assertIs<AppUiState.BusinessSelection>(coordinator.state.value)
         assertEquals(2, state.businesses.size)
@@ -71,17 +67,13 @@ class AppCoordinatorTest {
         )
 
         coordinator.bootstrap()
-        coordinator.updateEmail("owner@bron.app")
-        coordinator.updatePassword("123456")
-        coordinator.login()
+        coordinator.authenticate("998901112233")
         coordinator.updateRememberChoice(true)
         coordinator.selectBusiness("second")
 
         coordinator.logout()
         coordinator.bootstrap()
-        coordinator.updateEmail("owner@bron.app")
-        coordinator.updatePassword("123456")
-        coordinator.login()
+        coordinator.authenticate("998901112233")
 
         val state = assertIs<AppUiState.Authorized>(coordinator.state.value)
         assertEquals("second", state.business.id)
@@ -104,9 +96,7 @@ class AppCoordinatorTest {
         )
 
         coordinator.bootstrap()
-        coordinator.updateEmail("solo@bron.app")
-        coordinator.updatePassword("123456")
-        coordinator.login()
+        coordinator.authenticate("998901112233")
         coordinator.logout()
 
         val state = assertIs<AppUiState.Auth>(coordinator.state.value)
@@ -114,7 +104,7 @@ class AppCoordinatorTest {
         assertEquals(null, prefs.selectedBusinessId)
         assertEquals("solo", prefs.rememberedBusinessId)
         assertTrue(prefs.rememberBusinessSelection)
-        assertEquals("solo@bron.app", state.email)
+        assertEquals("998901112233", state.phone)
     }
 
     @Test
@@ -130,9 +120,7 @@ class AppCoordinatorTest {
         )
 
         coordinator.bootstrap()
-        coordinator.updateEmail("owner@bron.app")
-        coordinator.updatePassword("123456")
-        coordinator.login()
+        coordinator.authenticate("998901112233")
         coordinator.openCreateBusiness()
         coordinator.updateCreateBusinessName("New Salon")
         coordinator.updateCreateBusinessPhoto(PickedPhoto(bytes = byteArrayOf(1, 2, 3), fileName = "photo.jpg"))
@@ -144,10 +132,20 @@ class AppCoordinatorTest {
     }
 }
 
+/** Runs the full passwordless phone flow: enter phone, request code, enter code, verify. */
+private suspend fun AppCoordinator.authenticate(phone: String, code: String = "1234") {
+    updatePhone(phone)
+    requestCode()
+    updateCode(code)
+    verifyCode()
+}
+
 private class FakeAuthRepository(
     private val businesses: List<BusinessOption>,
 ) : AuthRepository {
-    override suspend fun login(email: String, password: String): LoginResult = LoginResult(
+    override suspend fun requireCode(phoneOrEmail: String): Boolean = true
+
+    override suspend fun verifyCode(phoneOrEmail: String, code: String): LoginResult = LoginResult(
         accessToken = "access-token",
         refreshToken = "refresh-token",
         businesses = businesses,

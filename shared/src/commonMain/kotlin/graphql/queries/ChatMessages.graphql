@@ -1,0 +1,11 @@
+query ChatMessages($chatInstanceId: Int!, $pagination: PaginationPageInput) {
+  messages(chatInstanceId: $chatInstanceId, pagination: $pagination) {
+    firstId
+    lastId
+    hasMoreBefore
+    hasMoreAfter
+    items {
+      ...MessageFragment
+    }
+  }
+}

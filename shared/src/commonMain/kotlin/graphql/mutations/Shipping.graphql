@@ -1,0 +1,5 @@
+mutation Shipping($userId: Int!) {
+  shipping(userId: $userId) {
+    pk
+  }
+}

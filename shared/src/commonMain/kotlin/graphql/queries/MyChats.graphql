@@ -1,0 +1,15 @@
+query MyChats($filters: ChatInstanceFilter) {
+  chatInstances(filters: $filters) {
+    pk
+    chatName
+    chatAvatar {
+      path
+    }
+    lastMessage {
+      pk
+      text
+      createdAt
+    }
+    getCountUnreadMessages
+  }
+}

@@ -1,0 +1,7 @@
+mutation AddBusiness($name: String!) {
+  addBusiness(name: $name) {
+    pk
+    name
+    ownerId
+  }
+}

@@ -1,0 +1,12 @@
+mutation UpdateBusiness($pk: Int!, $input: UpdateBusiness!) {
+  updateBusiness(pk: $pk, input: $input) {
+    pk
+    name
+    latitude
+    longitude
+    taxpayerIdentificationNumber
+    personalIdentificationNumber
+    logoUrl
+    contactPhone
+  }
+}

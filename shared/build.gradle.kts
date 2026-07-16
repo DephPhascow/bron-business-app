@@ -140,6 +140,11 @@ kotlin {
                 implementation(libs.multiplatform.settings.serialization)
                 implementation(libs.apollo.runtime)
                 implementation(compose.materialIconsExtended)
+                implementation(libs.ktor.client.core)
+                implementation(libs.filekit.core)
+                implementation(libs.filekit.dialogs)
+                implementation(libs.coil3.compose)
+                implementation(libs.coil3.network.ktor)
             }
         }
 
@@ -152,7 +157,18 @@ kotlin {
                 implementation(libs.androidx.camera.camera2)
                 implementation(libs.androidx.camera.lifecycle)
                 implementation(libs.androidx.camera.view)
+                implementation(libs.ktor.client.okhttp)
             }
+        }
+
+        val desktopMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.okhttp)
+            }
+        }
+
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
         }
 
         val commonTest by getting {
@@ -185,8 +201,14 @@ compose.resources {
 }
 
 apollo {
-    service("businessApp") {
+    service("businessAppAdminSide") {
         packageName.set("com.dphascow.app.graphql")
+        srcDir("src/commonMain/kotlin/graphql")
+        schemaFile.set(file("src/commonMain/kotlin/graphql/schema.json"))
+        // optional: introspection, schema file etc.
+        introspection {
+            endpointUrl.set(apiUrl.replace("10.0.2.2", "localhost"))
+        }
         mapScalarToKotlinString("Date")
         mapScalarToKotlinString("DateTime")
         mapScalarToKotlinString("JSON")

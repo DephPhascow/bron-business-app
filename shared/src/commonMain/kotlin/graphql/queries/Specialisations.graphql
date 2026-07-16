@@ -1,0 +1,6 @@
+query Specialisations($lang: String!) {
+  specialisations {
+    pk
+    name(lang: $lang)
+  }
+}

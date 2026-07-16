@@ -1,0 +1,15 @@
+fragment MessageFragment on MessageType {
+  pk
+  text
+  fileUrl
+  type
+  isIAuthor
+  isAnyRead
+  createdAt
+  chatMember {
+    pk
+    user {
+      fullName
+    }
+  }
+}

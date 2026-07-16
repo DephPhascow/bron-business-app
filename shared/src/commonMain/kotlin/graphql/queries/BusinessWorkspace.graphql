@@ -5,14 +5,27 @@ query BusinessWorkspace($businessId: Int!, $lang: String!) {
     logoUrl
     contactPhone
     address(lang: $lang)
+    middleStars
+    reviewsCount
+    reviews {
+      reviewMark
+      comments
+    }
     employees {
       pk
       role
       isActive
+      userId
       user {
+        pk
         fullName
         phone
         email
+        imageUrl
+      }
+      specialization {
+        pk
+        name(lang: $lang)
       }
     }
     services {
@@ -30,11 +43,13 @@ query BusinessWorkspace($businessId: Int!, $lang: String!) {
       pk
       bookingDate
       employeeId
+      userId
       status
       user {
         fullName
       }
       services {
+        cost
         service {
           pk
           name(lang: $lang)

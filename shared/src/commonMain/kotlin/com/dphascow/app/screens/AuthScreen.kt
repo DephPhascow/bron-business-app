@@ -1,6 +1,8 @@
 package com.dphascow.app.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +11,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,55 +29,72 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dphascow.app.auth.AppUiState
 import com.dphascow.app.auth.AuthError
+import com.dphascow.app.auth.AuthStage
 import com.dphascow.app.auth.hasPhoto
 import com.dphascow.app.expects.rememberPhotoPickerLauncher
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
-import com.dphascow.app.resources.auth_email_empty_error
-import com.dphascow.app.resources.auth_email_label
-import com.dphascow.app.resources.auth_email_invalid_error
-import com.dphascow.app.resources.auth_invalid_credentials_error
-import com.dphascow.app.resources.auth_login_action
-import com.dphascow.app.resources.auth_password_empty_error
-import com.dphascow.app.resources.auth_password_label
-import com.dphascow.app.resources.auth_subtitle
-import com.dphascow.app.resources.auth_title
-import com.dphascow.app.resources.auth_unknown_error
-import com.dphascow.app.resources.business_remember_choice
-import com.dphascow.app.resources.business_remember_choice_hint
-import com.dphascow.app.resources.business_create_action
-import com.dphascow.app.resources.business_create_name_label
-import com.dphascow.app.resources.business_create_photo_action
-import com.dphascow.app.resources.business_create_photo_added
-import com.dphascow.app.resources.business_create_photo_empty
-import com.dphascow.app.resources.business_create_submit_action
-import com.dphascow.app.resources.business_create_subtitle
-import com.dphascow.app.resources.business_create_title
-import com.dphascow.app.resources.business_select_action
-import com.dphascow.app.resources.business_selection_subtitle
-import com.dphascow.app.resources.business_selection_title
-import com.dphascow.app.resources.common_cancel
-import com.dphascow.app.resources.home_logout
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import ui.theme.T
+
+private const val CODE_LENGTH = 4
+private const val RESEND_SECONDS = 40
 
 @Composable
 fun AuthScreen(
     state: AppUiState.Auth,
-    onEmailChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
-    onLoginClick: () -> Unit,
-    onRegistrationClick: () -> Unit,
+    onPhoneChanged: (String) -> Unit,
+    onCodeChanged: (String) -> Unit,
+    onGetCodeClick: () -> Unit,
+    onVerifyClick: () -> Unit,
+    onResendClick: () -> Unit,
+    onBackClick: () -> Unit,
+) {
+    when (state.stage) {
+        AuthStage.PHONE -> PhoneStage(
+            state = state,
+            onPhoneChanged = onPhoneChanged,
+            onGetCodeClick = onGetCodeClick,
+        )
+
+        AuthStage.CODE -> CodeStage(
+            state = state,
+            onCodeChanged = onCodeChanged,
+            onVerifyClick = onVerifyClick,
+            onResendClick = onResendClick,
+            onBackClick = onBackClick,
+        )
+    }
+}
+
+@Composable
+private fun PhoneStage(
+    state: AppUiState.Auth,
+    onPhoneChanged: (String) -> Unit,
+    onGetCodeClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -106,26 +127,14 @@ fun AuthScreen(
                 verticalArrangement = Arrangement.spacedBy(T.d.md),
             ) {
                 OutlinedTextField(
-                    value = state.email,
-                    onValueChange = onEmailChanged,
+                    value = state.phone,
+                    onValueChange = onPhoneChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(Res.string.auth_email_label)) },
+                    label = { Text(text = stringResource(Res.string.auth_phone_label)) },
+                    placeholder = { Text(text = stringResource(Res.string.auth_phone_placeholder)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next,
-                    ),
-                )
-
-                OutlinedTextField(
-                    value = state.password,
-                    onValueChange = onPasswordChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(Res.string.auth_password_label)) },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
+                        keyboardType = KeyboardType.Phone,
                         imeAction = ImeAction.Done,
                     ),
                 )
@@ -139,7 +148,7 @@ fun AuthScreen(
                 }
 
                 Button(
-                    onClick = onLoginClick,
+                    onClick = onGetCodeClick,
                     enabled = !state.isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -150,32 +159,37 @@ fun AuthScreen(
                             color = T.c.onPrimary,
                         )
                     } else {
-                        Text(text = stringResource(Res.string.auth_login_action))
+                        Text(text = stringResource(Res.string.auth_get_code_action))
                     }
-                }
-
-                OutlinedButton(
-                    onClick = onRegistrationClick,
-                    enabled = !state.isSubmitting,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(Res.string.registration_action))
                 }
             }
         }
-
     }
 }
 
 @Composable
-fun RegistrationScreen(
-    state: AppUiState.Registration,
-    onNameChanged: (String) -> Unit,
-    onEmailChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
-    onRegisterClick: () -> Unit,
+private fun CodeStage(
+    state: AppUiState.Auth,
+    onCodeChanged: (String) -> Unit,
+    onVerifyClick: () -> Unit,
+    onResendClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
+    var secondsLeft by remember { mutableStateOf(RESEND_SECONDS) }
+    LaunchedEffect(secondsLeft) {
+        if (secondsLeft > 0) {
+            delay(1000)
+            secondsLeft--
+        }
+    }
+
+    // Auto-submit once the full code is entered.
+    LaunchedEffect(state.code) {
+        if (state.code.length == CODE_LENGTH && !state.isSubmitting) {
+            onVerifyClick()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -185,12 +199,12 @@ fun RegistrationScreen(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(T.d.sm)) {
             Text(
-                text = stringResource(Res.string.registration_title),
+                text = stringResource(Res.string.auth_code_title),
                 color = T.c.onBackground,
                 style = T.t.headingH3,
             )
             Text(
-                text = stringResource(Res.string.registration_subtitle),
+                text = stringResource(Res.string.auth_code_subtitle, CODE_LENGTH, maskPhone(state.phone)),
                 color = T.c.dark7,
                 style = T.t.t2Regular,
             )
@@ -206,38 +220,10 @@ fun RegistrationScreen(
                     .padding(T.d.lg),
                 verticalArrangement = Arrangement.spacedBy(T.d.md),
             ) {
-                OutlinedTextField(
-                    value = state.name,
-                    onValueChange = onNameChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(Res.string.registration_name_label)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                )
-
-                OutlinedTextField(
-                    value = state.email,
-                    onValueChange = onEmailChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(Res.string.auth_email_label)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next,
-                    ),
-                )
-
-                OutlinedTextField(
-                    value = state.password,
-                    onValueChange = onPasswordChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(Res.string.auth_password_label)) },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                    ),
+                CodeInput(
+                    code = state.code,
+                    enabled = !state.isSubmitting,
+                    onCodeChanged = onCodeChanged,
                 )
 
                 state.error?.let { error ->
@@ -245,22 +231,42 @@ fun RegistrationScreen(
                         text = error.asText(),
                         color = T.c.redError,
                         style = T.t.t4SamiBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
 
-                Button(
-                    onClick = onRegisterClick,
-                    enabled = !state.isSubmitting,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (state.isSubmitting) {
+                if (state.isSubmitting) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         CircularProgressIndicator(
                             modifier = Modifier.padding(vertical = 2.dp),
                             strokeWidth = 2.dp,
-                            color = T.c.onPrimary,
+                            color = T.c.primary,
                         )
-                    } else {
-                        Text(text = stringResource(Res.string.registration_submit_action))
+                    }
+                }
+
+                if (secondsLeft > 0) {
+                    Text(
+                        text = stringResource(Res.string.auth_resend_in, secondsLeft),
+                        color = T.c.dark7,
+                        style = T.t.t4,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    TextButton(
+                        onClick = {
+                            onResendClick()
+                            secondsLeft = RESEND_SECONDS
+                        },
+                        enabled = !state.isSubmitting,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = stringResource(Res.string.auth_resend_code))
                     }
                 }
 
@@ -269,7 +275,7 @@ fun RegistrationScreen(
                     enabled = !state.isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(text = stringResource(Res.string.common_cancel))
+                    Text(text = stringResource(Res.string.common_back))
                 }
             }
         }
@@ -277,11 +283,81 @@ fun RegistrationScreen(
 }
 
 @Composable
+private fun CodeInput(
+    code: String,
+    enabled: Boolean,
+    onCodeChanged: (String) -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+
+    BasicTextField(
+        value = code,
+        onValueChange = { raw ->
+            onCodeChanged(raw.filter(Char::isDigit).take(CODE_LENGTH))
+        },
+        enabled = enabled,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .fillMaxWidth(),
+        decorationBox = { innerTextField ->
+            // The real field is invisible; it only captures focus and the keyboard.
+            Box(Modifier.size(0.dp).alpha(0f)) { innerTextField() }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = enabled) { focusRequester.requestFocus() },
+                horizontalArrangement = Arrangement.spacedBy(T.d.sm),
+            ) {
+                val shape = RoundedCornerShape(T.d.md)
+                for (i in 0 until CODE_LENGTH) {
+                    val char = code.getOrNull(i)?.toString().orEmpty()
+                    val isFocused = i == code.length && code.length < CODE_LENGTH
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(shape)
+                            .background(T.c.background)
+                            .border(
+                                width = 1.dp,
+                                color = if (isFocused) T.c.primary else T.c.dark3,
+                                shape = shape,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = char.ifEmpty { " " },
+                            color = T.c.onBackground,
+                            style = TextStyle(
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center,
+                            ),
+                        )
+                    }
+                }
+            }
+        },
+    )
+}
+
+/** Masks a phone number for display, e.g. "+998 ** ***-**-**". */
+fun maskPhone(phone: String): String {
+    val digits = phone.filter { it.isDigit() }
+    if (digits.length < 6) return phone
+    val prefix = digits.take(3)
+    return "+$prefix ** ***-**-**"
+}
+
+@Composable
 private fun AuthError.asText(): String = when (this) {
-    AuthError.EMPTY_EMAIL -> stringResource(Res.string.auth_email_empty_error)
-    AuthError.INVALID_EMAIL -> stringResource(Res.string.auth_email_invalid_error)
-    AuthError.EMPTY_PASSWORD -> stringResource(Res.string.auth_password_empty_error)
-    AuthError.INVALID_CREDENTIALS -> stringResource(Res.string.auth_invalid_credentials_error)
+    AuthError.EMPTY_PHONE -> stringResource(Res.string.auth_phone_empty_error)
+    AuthError.INVALID_PHONE -> stringResource(Res.string.auth_phone_invalid_error)
+    AuthError.CODE_SEND_FAILED -> stringResource(Res.string.auth_code_send_failed_error)
+    AuthError.EMPTY_CODE -> stringResource(Res.string.auth_code_empty_error)
+    AuthError.INVALID_CODE -> stringResource(Res.string.auth_code_invalid_error)
     AuthError.UNKNOWN -> stringResource(Res.string.auth_unknown_error)
 }
 
@@ -522,13 +598,3 @@ fun BusinessCreationScreen(
         }
     }
 }
-
-
-
-
-
-
-
-
-
-

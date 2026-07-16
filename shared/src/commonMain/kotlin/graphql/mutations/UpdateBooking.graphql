@@ -1,0 +1,10 @@
+mutation UpdateBooking($pk: Int!, $input: UpdateBooking!) {
+  updateBooking(pk: $pk, input: $input) {
+    pk
+    bookingDate
+    endDate
+    comments
+    remindBefore
+    status
+  }
+}

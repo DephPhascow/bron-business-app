@@ -17,31 +17,37 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
+import com.dphascow.app.business.BusinessWorkspaceRepository
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import com.dphascow.app.auth.AppUiState
+import com.dphascow.app.business.BookingStatus
 import com.dphascow.app.business.BusinessWorkspace
+import com.dphascow.app.business.serviceSummary
+import com.dphascow.app.business.total
 import com.dphascow.app.expects.PickedPhoto
 import com.dphascow.app.expects.rememberPhotoPickerLauncher
-import com.dphascow.app.mock.MockBusinessData
-import com.dphascow.app.mock.MockEmployee
-import com.dphascow.app.mock.MockGalleryPhoto
-import com.dphascow.app.mock.MockOrder
-import com.dphascow.app.mock.MockService
+import com.dphascow.app.ui.NetworkImage
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -165,8 +171,10 @@ fun DashboardScreen(
     onOpenGallery: () -> Unit,
     onOpenOrders: () -> Unit,
     onOpenAnalytics: () -> Unit,
+    onOpenReviews: () -> Unit,
+    onOpenChat: () -> Unit,
     onChangeBusinessClick: () -> Unit,
-    onLogoutClick: () -> Unit,
+    onOpenAccount: () -> Unit,
 ) {
     val open = stringResource(Res.string.common_open)
     PageLayout(
@@ -179,23 +187,30 @@ fun DashboardScreen(
         InfoCard(stringResource(Res.string.services_title), stringResource(Res.string.dashboard_services_subtitle), open, onOpenServices)
         InfoCard(stringResource(Res.string.gallery_title), stringResource(Res.string.dashboard_gallery_subtitle), open, onOpenGallery)
         InfoCard(stringResource(Res.string.analytics_title), stringResource(Res.string.dashboard_analytics_subtitle), open, onOpenAnalytics)
+        InfoCard(stringResource(Res.string.reviews_title), stringResource(Res.string.dashboard_reviews_subtitle), open, onOpenReviews)
+        InfoCard(stringResource(Res.string.chat_title), stringResource(Res.string.dashboard_chat_subtitle), open, onOpenChat)
         InfoCard(stringResource(Res.string.business_settings_title), stringResource(Res.string.dashboard_business_settings_subtitle), open, onOpenBusinessSettings)
         if (state.canSwitchBusiness) {
             InfoCard(stringResource(Res.string.home_change_business), stringResource(Res.string.dashboard_change_business_subtitle), stringResource(Res.string.common_change), onChangeBusinessClick)
         }
-        InfoCard(stringResource(Res.string.dashboard_account_title), state.email, stringResource(Res.string.home_logout), onLogoutClick)
+        InfoCard(stringResource(Res.string.dashboard_account_title), state.phone, stringResource(Res.string.common_open), onOpenAccount)
     }
 }
 
 @Composable
 fun BusinessSettingsScreen(
     workspace: BusinessWorkspace?,
+    repository: BusinessWorkspaceRepository?,
     onBack: () -> Unit,
+    onSaved: () -> Unit,
 ) {
-    val defaultAddress = stringResource(Res.string.business_settings_default_address)
-    var name by remember(workspace?.name) { mutableStateOf(workspace?.name ?: "Bron Beauty") }
-    var phone by remember(workspace?.phone) { mutableStateOf(workspace?.phone ?: "+998 90 000 00 00") }
-    var address by remember(workspace?.address, defaultAddress) { mutableStateOf(workspace?.address ?: defaultAddress) }
+    val scope = rememberCoroutineScope()
+    var name by remember(workspace?.name) { mutableStateOf(workspace?.name.orEmpty()) }
+    var phone by remember(workspace?.phone) { mutableStateOf(workspace?.phone.orEmpty()) }
+    var logo by remember(workspace?.id) { mutableStateOf<PickedPhoto?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val logoPicker = rememberPhotoPickerLauncher(onPhotoPicked = { logo = it })
 
     PageLayout(
         title = stringResource(Res.string.business_settings_title),
@@ -204,77 +219,41 @@ fun BusinessSettingsScreen(
     ) {
         OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.business_create_name_label)) }, singleLine = true)
         OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.business_settings_phone_label)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-        OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.business_settings_address_label)) })
-        ActionRow(stringResource(Res.string.common_save), onBack)
-    }
-}
 
-@Composable
-fun EmployeesScreen(
-    workspace: BusinessWorkspace?,
-    onBack: () -> Unit,
-    onEmployeeClick: (String) -> Unit,
-    onAddEmployeeClick: () -> Unit,
-) {
-    PageLayout(stringResource(Res.string.employees_title), stringResource(Res.string.employees_subtitle), onBack) {
-        InfoCard(stringResource(Res.string.employees_add_title), stringResource(Res.string.employees_add_subtitle), stringResource(Res.string.common_add), onAddEmployeeClick)
-        val apiEmployees = workspace?.employees
-        if (apiEmployees != null) {
-            apiEmployees.forEach { employee ->
-                InfoCard(employee.name, listOfNotNull(employee.role, employee.phone).joinToString(" · "), stringResource(Res.string.common_open)) { onEmployeeClick(employee.id) }
-            }
-        } else {
-            MockBusinessData.employees.forEach { employee ->
-                InfoCard(employeeName(employee), "${employeeRole(employee)} · ${employee.phone}", stringResource(Res.string.common_open)) { onEmployeeClick(employee.id) }
+        workspace?.logoUrl?.takeIf { logo == null }?.let { url ->
+            NetworkImage(
+                url = url,
+                modifier = Modifier.fillMaxWidth().aspectRatio(2f).clip(RoundedCornerShape(T.d.lg)),
+            )
+        }
+        OutlinedButton(onClick = logoPicker::launch, enabled = logoPicker.isAvailable && !saving, modifier = Modifier.fillMaxWidth()) {
+            Text(logo?.fileName ?: stringResource(Res.string.business_settings_logo_action))
+        }
+
+        error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
+
+        Button(
+            onClick = {
+                val id = workspace?.id ?: return@Button
+                if (repository == null) return@Button
+                saving = true
+                error = null
+                scope.launch {
+                    runCatching {
+                        repository.saveBusinessDetails(businessId = id, name = name, contactPhone = phone, logoPhoto = logo)
+                    }.onSuccess { onSaved() }
+                        .onFailure { saving = false; error = it.message }
+                }
+            },
+            enabled = !saving && workspace != null && repository != null,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (saving) {
+                CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.onPrimary)
+            } else {
+                Text(stringResource(Res.string.common_save))
             }
         }
-    }
-}
-
-@Composable
-fun EmployeeDetailsScreen(
-    workspace: BusinessWorkspace?,
-    employeeId: String,
-    onBack: () -> Unit,
-    onEditClick: () -> Unit,
-) {
-    val apiEmployee = workspace?.employees?.firstOrNull { it.id == employeeId }
-    val employee = MockBusinessData.employees.firstOrNull { it.id == employeeId }
-    val role = apiEmployee?.role ?: employee?.let { employeeRole(it) }
-    val name = apiEmployee?.name ?: employee?.let { employeeName(it) }
-    val contacts = listOfNotNull(apiEmployee?.phone ?: employee?.phone, apiEmployee?.email ?: employee?.email).joinToString("\n")
-
-    PageLayout(name ?: stringResource(Res.string.employee_title_fallback), role ?: stringResource(Res.string.employee_profile_subtitle), onBack) {
-        InfoCard(stringResource(Res.string.employee_contacts_title), contacts)
-        InfoCard(stringResource(Res.string.employee_schedule_title), stringResource(Res.string.employee_schedule_value))
-        InfoCard(stringResource(Res.string.employee_access_title), stringResource(Res.string.employee_role_value, role ?: "—"), stringResource(Res.string.common_edit), onEditClick)
-    }
-}
-
-@Composable
-fun EmployeeEditScreen(
-    employeeId: String?,
-    onBack: () -> Unit,
-    onSaveClick: () -> Unit,
-) {
-    val employee = MockBusinessData.employees.firstOrNull { it.id == employeeId }
-    val defaultName = employee?.let { employeeName(it) }.orEmpty()
-    val defaultRole = employee?.let { employeeRole(it) }.orEmpty()
-    var name by remember(employeeId, defaultName) { mutableStateOf(defaultName) }
-    var role by remember(employeeId, defaultRole) { mutableStateOf(defaultRole) }
-    var phone by remember(employeeId) { mutableStateOf(employee?.phone.orEmpty()) }
-    var email by remember(employeeId) { mutableStateOf(employee?.email.orEmpty()) }
-
-    PageLayout(
-        if (employeeId == null) stringResource(Res.string.employee_add_title) else stringResource(Res.string.employee_edit_title),
-        stringResource(Res.string.employee_edit_subtitle),
-        onBack,
-    ) {
-        OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.employee_name_label)) }, singleLine = true)
-        OutlinedTextField(role, { role = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.employee_position_label)) }, singleLine = true)
-        OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.business_settings_phone_label)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.auth_email_label)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
-        ActionRow(stringResource(Res.string.common_save), onSaveClick, stringResource(Res.string.common_cancel), onBack)
     }
 }
 
@@ -283,19 +262,14 @@ fun ServicesScreen(
     workspace: BusinessWorkspace?,
     onBack: () -> Unit,
     onServiceClick: (String) -> Unit,
-    onAddServiceClick: () -> Unit,
 ) {
     PageLayout(stringResource(Res.string.services_title), stringResource(Res.string.services_subtitle), onBack) {
-        InfoCard(stringResource(Res.string.services_create_title), stringResource(Res.string.services_create_subtitle), stringResource(Res.string.common_create), onAddServiceClick)
-        val apiServices = workspace?.services
-        if (apiServices != null) {
-            apiServices.forEach { service ->
-                InfoCard(service.name, "${service.duration} · ${service.price}", stringResource(Res.string.common_open)) { onServiceClick(service.id) }
-            }
-        } else {
-            MockBusinessData.services.forEach { service ->
-                InfoCard(serviceName(service), "${stringResource(Res.string.service_duration_value, service.durationMinutes)} · ${service.price}", stringResource(Res.string.common_open)) { onServiceClick(service.id) }
-            }
+        val services = workspace?.services.orEmpty()
+        if (services.isEmpty()) {
+            EmptyStateCard(stringResource(Res.string.services_empty))
+        }
+        services.forEach { service ->
+            InfoCard(service.name, "${service.duration} · ${service.price}", stringResource(Res.string.common_open)) { onServiceClick(service.id) }
         }
     }
 }
@@ -305,41 +279,12 @@ fun ServiceDetailsScreen(
     workspace: BusinessWorkspace?,
     serviceId: String,
     onBack: () -> Unit,
-    onEditClick: () -> Unit,
 ) {
-    val apiService = workspace?.services?.firstOrNull { it.id == serviceId }
-    val service = MockBusinessData.services.firstOrNull { it.id == serviceId }
+    val service = workspace?.services?.firstOrNull { it.id == serviceId }
 
-    PageLayout(apiService?.name ?: service?.let { serviceName(it) } ?: stringResource(Res.string.service_title_fallback), stringResource(Res.string.service_details_subtitle), onBack) {
-        InfoCard(stringResource(Res.string.service_price_title), apiService?.price ?: service?.price ?: "—")
-        InfoCard(stringResource(Res.string.service_duration_title), apiService?.duration ?: stringResource(Res.string.service_duration_value, service?.durationMinutes ?: 0))
-        InfoCard(stringResource(Res.string.service_description_title), stringResource(Res.string.service_description_placeholder), stringResource(Res.string.common_edit), onEditClick)
-    }
-}
-
-@Composable
-fun ServiceEditScreen(
-    serviceId: String?,
-    onBack: () -> Unit,
-    onSaveClick: () -> Unit,
-) {
-    val service = MockBusinessData.services.firstOrNull { it.id == serviceId }
-    val defaultName = service?.let { serviceName(it) }.orEmpty()
-    var name by remember(serviceId, defaultName) { mutableStateOf(defaultName) }
-    var duration by remember(serviceId) { mutableStateOf(service?.durationMinutes?.toString().orEmpty()) }
-    var price by remember(serviceId) { mutableStateOf(service?.price.orEmpty()) }
-    var description by remember(serviceId) { mutableStateOf("") }
-
-    PageLayout(
-        if (serviceId == null) stringResource(Res.string.service_create_title) else stringResource(Res.string.service_edit_title),
-        stringResource(Res.string.service_edit_subtitle),
-        onBack,
-    ) {
-        OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.service_name_label)) }, singleLine = true)
-        OutlinedTextField(duration, { duration = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.service_duration_label)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-        OutlinedTextField(price, { price = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.service_price_label)) }, singleLine = true)
-        OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.service_description_label)) })
-        ActionRow(stringResource(Res.string.common_save), onSaveClick, stringResource(Res.string.common_cancel), onBack)
+    PageLayout(service?.name ?: stringResource(Res.string.service_title_fallback), stringResource(Res.string.service_details_subtitle), onBack) {
+        InfoCard(stringResource(Res.string.service_price_title), service?.price ?: "—")
+        InfoCard(stringResource(Res.string.service_duration_title), service?.duration ?: "—")
     }
 }
 
@@ -351,14 +296,20 @@ fun GalleryScreen(
 ) {
     PageLayout(stringResource(Res.string.gallery_title), stringResource(Res.string.gallery_subtitle), onBack) {
         InfoCard(stringResource(Res.string.gallery_upload_title_card), stringResource(Res.string.gallery_upload_subtitle_card), stringResource(Res.string.common_upload), onUploadClick)
-        val apiGallery = workspace?.gallery
-        if (apiGallery != null) {
-            apiGallery.forEach { photo ->
-                InfoCard(photo.imageUrl, stringResource(Res.string.gallery_mock_photo_subtitle))
-            }
-        } else {
-            MockBusinessData.gallery.forEach { photo ->
-                InfoCard(galleryPhotoTitle(photo), stringResource(Res.string.gallery_mock_photo_subtitle))
+        val gallery = workspace?.gallery.orEmpty()
+        if (gallery.isEmpty()) {
+            EmptyStateCard(stringResource(Res.string.gallery_empty))
+        }
+        gallery.forEach { photo ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = T.c.surface),
+                shape = RoundedCornerShape(T.d.lg),
+            ) {
+                NetworkImage(
+                    url = photo.imageUrl,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).clip(RoundedCornerShape(T.d.lg)),
+                )
             }
         }
     }
@@ -366,11 +317,15 @@ fun GalleryScreen(
 
 @Composable
 fun GalleryUploadScreen(
+    workspace: BusinessWorkspace?,
+    repository: BusinessWorkspaceRepository?,
     onBack: () -> Unit,
-    onSaveClick: () -> Unit,
+    onSaved: () -> Unit,
 ) {
-    var title by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
     var photo by remember { mutableStateOf<PickedPhoto?>(null) }
+    var uploading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     val photoPicker = rememberPhotoPickerLauncher(onPhotoPicked = { photo = it })
 
     PageLayout(stringResource(Res.string.gallery_upload_title), stringResource(Res.string.gallery_upload_subtitle), onBack) {
@@ -388,11 +343,34 @@ fun GalleryUploadScreen(
                 tint = T.c.dark1,
             )
         }
-        OutlinedButton(onClick = photoPicker::launch, enabled = photoPicker.isAvailable, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = photoPicker::launch, enabled = photoPicker.isAvailable && !uploading, modifier = Modifier.fillMaxWidth()) {
             Text(photo?.fileName ?: stringResource(Res.string.gallery_choose_photo_action))
         }
-        OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.gallery_description_label)) })
-        ActionRow(stringResource(Res.string.common_save), onSaveClick, stringResource(Res.string.common_cancel), onBack)
+
+        error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
+
+        Button(
+            onClick = {
+                val id = workspace?.id ?: return@Button
+                val picked = photo ?: return@Button
+                if (repository == null) return@Button
+                uploading = true
+                error = null
+                scope.launch {
+                    runCatching { repository.addGalleryPhoto(id, picked) }
+                        .onSuccess { onSaved() }
+                        .onFailure { uploading = false; error = it.message }
+                }
+            },
+            enabled = !uploading && photo != null && workspace != null && repository != null,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (uploading) {
+                CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.onPrimary)
+            } else {
+                Text(stringResource(Res.string.common_save))
+            }
+        }
     }
 }
 
@@ -402,47 +380,128 @@ fun OrdersScreen(
     onBack: () -> Unit,
     onOrderClick: (String) -> Unit,
 ) {
+    var query by remember { mutableStateOf("") }
     PageLayout(stringResource(Res.string.orders_title), stringResource(Res.string.orders_subtitle), onBack) {
-        val apiOrders = workspace?.orders
-        if (apiOrders != null) {
-            apiOrders.forEach { order ->
-                val employeeName = workspace.employees.firstOrNull { it.id == order.employeeId }?.name.orEmpty()
-                InfoCard(
-                    title = "${order.clientName} · ${order.dateTime}",
-                    subtitle = listOf(order.serviceName, employeeName, order.status).filter { it.isNotBlank() }.joinToString(" · "),
-                    actionText = stringResource(Res.string.common_open),
-                    onClick = { onOrderClick(order.id) },
-                )
-            }
-        } else {
-            MockBusinessData.orders.forEach { order ->
-                InfoCard(
-                    title = "${orderClientName(order)} · ${orderDateTime(order)}",
-                    subtitle = "${orderServiceName(order)} · ${orderEmployeeName(order)} · ${orderStatus(order)}",
-                    actionText = stringResource(Res.string.common_open),
-                    onClick = { onOrderClick(order.id) },
-                )
-            }
+        SearchField(query) { query = it }
+        val orders = workspace?.orders.orEmpty()
+            .sortedByDescending { it.dateTime }
+            .filter { query.isBlank() || it.clientName.contains(query, ignoreCase = true) || it.serviceSummary.contains(query, ignoreCase = true) }
+        if (orders.isEmpty()) {
+            EmptyStateCard(stringResource(Res.string.orders_empty))
+        }
+        orders.forEach { order ->
+            val employeeName = workspace?.employees?.firstOrNull { it.id == order.employeeId }?.name.orEmpty()
+            InfoCard(
+                title = "${order.clientName} · ${order.dateTime}",
+                subtitle = listOf(order.serviceSummary, employeeName, order.status.label()).filter { it.isNotBlank() }.joinToString(" · "),
+                actionText = stringResource(Res.string.common_open),
+                onClick = { onOrderClick(order.id) },
+            )
         }
     }
+}
+
+@Composable
+internal fun BookingStatus.label(): String = when (this) {
+    BookingStatus.WAITING -> stringResource(Res.string.booking_status_waiting)
+    BookingStatus.SUCCESS -> stringResource(Res.string.booking_status_success)
+    BookingStatus.CANCELLED -> stringResource(Res.string.booking_status_cancelled)
+    BookingStatus.CLIENT_MISSING -> stringResource(Res.string.booking_status_client_missing)
+    BookingStatus.UNKNOWN -> "—"
 }
 
 @Composable
 fun OrderDetailsScreen(
     workspace: BusinessWorkspace?,
     orderId: String,
+    repository: BusinessWorkspaceRepository?,
+    chatRepository: com.dphascow.app.chat.ChatRepository?,
     onBack: () -> Unit,
+    onChanged: () -> Unit,
+    onOpenConversation: (String) -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var messaging by remember { mutableStateOf(false) }
+    var confirmCancel by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
     val apiOrder = workspace?.orders?.firstOrNull { it.id == orderId }
-    val order = MockBusinessData.orders.firstOrNull { it.id == orderId }
     val apiEmployeeName = apiOrder?.let { api -> workspace?.employees?.firstOrNull { it.id == api.employeeId }?.name }
 
-    PageLayout(stringResource(Res.string.order_title), apiOrder?.clientName ?: order?.let { orderClientName(it) } ?: stringResource(Res.string.order_details_subtitle), onBack) {
-        InfoCard(stringResource(Res.string.order_client_title), apiOrder?.clientName ?: order?.let { orderClientName(it) } ?: "—")
-        InfoCard(stringResource(Res.string.order_service_title), apiOrder?.serviceName ?: order?.let { orderServiceName(it) } ?: "—")
-        InfoCard(stringResource(Res.string.order_employee_title), apiEmployeeName ?: order?.let { orderEmployeeName(it) } ?: "—")
-        InfoCard(stringResource(Res.string.order_time_title), apiOrder?.dateTime ?: order?.let { orderDateTime(it) } ?: "—")
-        InfoCard(stringResource(Res.string.order_status_title), apiOrder?.status ?: order?.let { orderStatus(it) } ?: "—")
+    fun run(action: suspend () -> Unit) {
+        busy = true
+        error = null
+        scope.launch {
+            runCatching { action() }
+                .onSuccess { onChanged() }
+                .onFailure { busy = false; error = it.message }
+        }
+    }
+
+    PageLayout(stringResource(Res.string.order_title), apiOrder?.clientName ?: stringResource(Res.string.order_details_subtitle), onBack) {
+        InfoCard(stringResource(Res.string.order_client_title), apiOrder?.clientName ?: "—")
+        InfoCard(stringResource(Res.string.order_service_title), apiOrder?.serviceSummary ?: "—")
+        apiOrder?.let { InfoCard(stringResource(Res.string.order_total_title), it.total.toString()) }
+        InfoCard(stringResource(Res.string.order_employee_title), apiEmployeeName ?: "—")
+        InfoCard(stringResource(Res.string.order_time_title), apiOrder?.dateTime ?: "—")
+        InfoCard(stringResource(Res.string.order_status_title), apiOrder?.status?.label() ?: "—")
+
+        error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
+
+        if (apiOrder != null && chatRepository != null) {
+            Button(
+                onClick = {
+                    messaging = true
+                    error = null
+                    scope.launch {
+                        runCatching { chatRepository.startChatWith(apiOrder.clientUserId) }
+                            .onSuccess { chatId -> messaging = false; onOpenConversation(chatId) }
+                            .onFailure { messaging = false; error = it.message }
+                    }
+                },
+                enabled = !messaging && !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (messaging) {
+                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.onPrimary)
+                } else {
+                    Text(stringResource(Res.string.order_message_client))
+                }
+            }
+        }
+
+        // Status actions are only available for pending bookings.
+        if (apiOrder != null && repository != null && apiOrder.status == BookingStatus.WAITING) {
+            if (busy) {
+                CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.primary)
+            } else {
+                Button(
+                    onClick = { run { repository.updateBookingStatus(apiOrder.id, BookingStatus.SUCCESS) } },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(Res.string.order_mark_done)) }
+                OutlinedButton(
+                    onClick = { run { repository.updateBookingStatus(apiOrder.id, BookingStatus.CLIENT_MISSING) } },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(Res.string.order_mark_no_show)) }
+                OutlinedButton(
+                    onClick = { confirmCancel = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(Res.string.order_cancel_action)) }
+            }
+        }
+    }
+
+    if (confirmCancel && apiOrder != null && repository != null) {
+        ConfirmDialog(
+            title = stringResource(Res.string.confirm_cancel_booking),
+            confirmText = stringResource(Res.string.order_cancel_action),
+            onConfirm = {
+                confirmCancel = false
+                run { repository.cancelBooking(apiOrder.id) }
+            },
+            onDismiss = { confirmCancel = false },
+        )
     }
 }
 
@@ -458,74 +517,92 @@ fun AnalyticsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun employeeName(employee: MockEmployee): String = when (employee.id) {
-    "employee-1" -> stringResource(Res.string.mock_employee_anna_name)
-    "employee-2" -> stringResource(Res.string.mock_employee_maria_name)
-    "employee-3" -> stringResource(Res.string.mock_employee_dilnoza_name)
-    else -> stringResource(Res.string.employee_title_fallback)
+fun ReviewsScreen(
+    workspace: BusinessWorkspace?,
+    onBack: () -> Unit,
+) {
+    PageLayout(stringResource(Res.string.reviews_title), stringResource(Res.string.reviews_subtitle), onBack) {
+        val reviews = workspace?.reviews.orEmpty()
+        InfoCard(
+            title = "★ ${workspace?.rating.oneDecimal()}",
+            subtitle = stringResource(Res.string.reviews_count_value, workspace?.reviewsCount ?: 0),
+        )
+        if (reviews.isEmpty()) {
+            EmptyStateCard(stringResource(Res.string.reviews_empty))
+        }
+        reviews.forEach { review ->
+            InfoCard(title = "★ ${review.mark}", subtitle = review.comment)
+        }
+    }
+}
+
+private fun Double?.oneDecimal(): String {
+    val value = this ?: 0.0
+    return (kotlin.math.round(value * 10) / 10.0).toString()
 }
 
 @Composable
-private fun employeeRole(employee: MockEmployee): String = when (employee.id) {
-    "employee-1" -> stringResource(Res.string.mock_employee_anna_role)
-    "employee-2" -> stringResource(Res.string.mock_employee_maria_role)
-    "employee-3" -> stringResource(Res.string.mock_employee_dilnoza_role)
-    else -> "—"
+internal fun WorkspaceStatusScreen(
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    onBack: () -> Unit,
+) {
+    PageLayout(stringResource(Res.string.app_title), null, onBack) {
+        if (loading) {
+            Box(modifier = Modifier.fillMaxWidth().padding(T.d.lg), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = T.c.primary)
+            }
+        } else {
+            EmptyStateCard(error ?: stringResource(Res.string.workspace_load_error))
+            Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(Res.string.common_retry))
+            }
+        }
+    }
 }
 
 @Composable
-private fun serviceName(service: MockService): String = when (service.id) {
-    "service-1" -> stringResource(Res.string.mock_service_manicure)
-    "service-2" -> stringResource(Res.string.mock_service_pedicure)
-    "service-3" -> stringResource(Res.string.mock_service_coloring)
-    else -> stringResource(Res.string.service_title_fallback)
+internal fun ConfirmDialog(
+    title: String,
+    confirmText: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(stringResource(Res.string.action_irreversible)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmText) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
 }
 
 @Composable
-private fun galleryPhotoTitle(photo: MockGalleryPhoto): String = when (photo.id) {
-    "photo-1" -> stringResource(Res.string.mock_gallery_photo_1)
-    "photo-2" -> stringResource(Res.string.mock_gallery_photo_2)
-    "photo-3" -> stringResource(Res.string.mock_gallery_photo_3)
-    else -> stringResource(Res.string.gallery_title)
+internal fun SearchField(value: String, onValueChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text(stringResource(Res.string.common_search)) },
+        singleLine = true,
+    )
 }
 
 @Composable
-private fun orderClientName(order: MockOrder): String = when (order.id) {
-    "order-1" -> stringResource(Res.string.mock_client_elena)
-    "order-2" -> stringResource(Res.string.mock_client_dinara)
-    "order-3" -> stringResource(Res.string.mock_client_sabina)
-    else -> stringResource(Res.string.order_client_title)
-}
-
-@Composable
-private fun orderServiceName(order: MockOrder): String = when (order.id) {
-    "order-1" -> stringResource(Res.string.mock_service_manicure)
-    "order-2" -> stringResource(Res.string.mock_service_pedicure)
-    "order-3" -> stringResource(Res.string.mock_service_coloring)
-    else -> stringResource(Res.string.order_service_title)
-}
-
-@Composable
-private fun orderEmployeeName(order: MockOrder): String = when (order.id) {
-    "order-1", "order-2" -> stringResource(Res.string.mock_employee_anna_name)
-    "order-3" -> stringResource(Res.string.mock_employee_dilnoza_name)
-    else -> stringResource(Res.string.order_employee_title)
-}
-
-@Composable
-private fun orderDateTime(order: MockOrder): String = when (order.id) {
-    "order-1" -> stringResource(Res.string.mock_order_today)
-    "order-2" -> stringResource(Res.string.mock_order_tomorrow)
-    "order-3" -> stringResource(Res.string.mock_order_friday)
-    else -> "—"
-}
-
-@Composable
-private fun orderStatus(order: MockOrder): String = when (order.id) {
-    "order-1" -> stringResource(Res.string.mock_status_confirmed)
-    "order-2" -> stringResource(Res.string.mock_status_new)
-    "order-3" -> stringResource(Res.string.mock_status_waiting_payment)
-    else -> "—"
+internal fun EmptyStateCard(text: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = T.c.surface),
+        shape = RoundedCornerShape(T.d.lg),
+    ) {
+        Text(
+            text = text,
+            color = T.c.dark7,
+            style = T.t.t2Regular,
+            modifier = Modifier.fillMaxWidth().padding(T.d.lg),
+        )
+    }
 }
 
 

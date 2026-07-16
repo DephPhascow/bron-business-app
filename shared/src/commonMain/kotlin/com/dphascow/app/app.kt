@@ -23,7 +23,6 @@ import com.dphascow.app.auth.AppUiState
 import com.dphascow.app.screens.AuthScreen
 import com.dphascow.app.screens.BusinessCreationScreen
 import com.dphascow.app.screens.BusinessSelectionScreen
-import com.dphascow.app.screens.RegistrationScreen
 import com.dphascow.app.screens.main.MainShell
 import i18n.ProvideAppLocale
 import kotlinx.coroutines.launch
@@ -36,6 +35,11 @@ import com.dphascow.app.resources.common_loading
 
 @Composable
 fun App() {
+    coil3.compose.setSingletonImageLoaderFactory { context ->
+        coil3.ImageLoader.Builder(context)
+            .components { add(coil3.network.ktor3.KtorNetworkFetcherFactory()) }
+            .build()
+    }
     val prefs = remember { Prefs() }
     val scope = rememberCoroutineScope()
     var lang by remember { mutableStateOf(prefs.lang ?: "ru") } // TODO get default lang
@@ -49,10 +53,16 @@ fun App() {
         AppCoordinator(prefs, AppDependencies.createAuthRepository(requester))
     }
     val businessWorkspaceRepository = remember { AppDependencies.createBusinessWorkspaceRepository(requester) }
+    val profileRepository = remember { AppDependencies.createProfileRepository(requester) }
+    val chatRepository = remember { AppDependencies.createChatRepository(requester, prefs) }
+    val pushRepository = remember { AppDependencies.createPushRepository(requester) }
 
     LaunchedEffect(Unit) {
         onAuthError = coordinator::logout
         coordinator.bootstrap()
+        com.dphascow.app.push.PushTokenBridge.handler = { token ->
+            scope.launch { runCatching { pushRepository.registerToken(token) } }
+        }
     }
     LaunchedEffect(lang) { prefs.lang = lang }
     LaunchedEffect(theme) { prefs.theme = theme }
@@ -69,26 +79,24 @@ fun App() {
                     AppUiState.Loading -> LoadingScreen()
                     is AppUiState.Auth -> AuthScreen(
                         state = currentState,
-                        onEmailChanged = coordinator::updateEmail,
-                        onPasswordChanged = coordinator::updatePassword,
-                        onLoginClick = {
+                        onPhoneChanged = coordinator::updatePhone,
+                        onCodeChanged = coordinator::updateCode,
+                        onGetCodeClick = {
                             scope.launch {
-                                coordinator.login()
+                                coordinator.requestCode()
                             }
                         },
-                        onRegistrationClick = coordinator::openRegistration,
-                    )
-                    is AppUiState.Registration -> RegistrationScreen(
-                        state = currentState,
-                        onNameChanged = coordinator::updateRegistrationName,
-                        onEmailChanged = coordinator::updateRegistrationEmail,
-                        onPasswordChanged = coordinator::updateRegistrationPassword,
-                        onRegisterClick = {
+                        onVerifyClick = {
                             scope.launch {
-                                coordinator.register()
+                                coordinator.verifyCode()
                             }
                         },
-                        onBackClick = coordinator::cancelRegistration,
+                        onResendClick = {
+                            scope.launch {
+                                coordinator.resendCode()
+                            }
+                        },
+                        onBackClick = coordinator::backToPhone,
                     )
                     is AppUiState.BusinessSelection -> BusinessSelectionScreen(
                         state = currentState,
@@ -115,7 +123,12 @@ fun App() {
                     is AppUiState.Authorized -> MainShell(
                         state = currentState,
                         lang = lang,
+                        theme = theme,
                         businessWorkspaceRepository = businessWorkspaceRepository,
+                        profileRepository = profileRepository,
+                        chatRepository = chatRepository,
+                        onLangChange = { lang = it },
+                        onThemeChange = { theme = it },
                         onChangeBusinessClick = coordinator::openBusinessSelection,
                         onLogoutClick = coordinator::logout
                     )
