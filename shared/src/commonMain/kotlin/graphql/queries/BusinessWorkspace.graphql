@@ -5,6 +5,8 @@ query BusinessWorkspace($businessId: Int!, $lang: String!) {
     logoUrl
     contactPhone
     address(lang: $lang)
+    workTime { ...WorkTimeFields }
+    breakTime { ...WorkTimeFields }
     middleStars
     reviewsCount
     reviews {

@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -17,14 +19,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +48,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import com.dphascow.app.auth.AppUiState
 import com.dphascow.app.business.BookingStatus
 import com.dphascow.app.business.BusinessWorkspace
+import com.dphascow.app.business.DayInterval
+import com.dphascow.app.business.WeeklySchedule
+import com.dphascow.app.business.Weekday
 import com.dphascow.app.business.serviceSummary
 import com.dphascow.app.business.total
 import com.dphascow.app.expects.PickedPhoto
@@ -58,6 +66,7 @@ internal fun PageLayout(
     title: String,
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
+    onMenu: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -70,6 +79,11 @@ internal fun PageLayout(
         if (onBack != null) {
             OutlinedButton(onClick = onBack) {
                 Text(stringResource(Res.string.common_back))
+            }
+        }
+        if (onMenu != null) {
+            IconButton(onClick = onMenu) {
+                Icon(Icons.Outlined.Menu, contentDescription = stringResource(Res.string.account_title))
             }
         }
 
@@ -174,12 +188,13 @@ fun DashboardScreen(
     onOpenReviews: () -> Unit,
     onOpenChat: () -> Unit,
     onChangeBusinessClick: () -> Unit,
-    onOpenAccount: () -> Unit,
+    onOpenMenu: () -> Unit,
 ) {
     val open = stringResource(Res.string.common_open)
     PageLayout(
         title = stringResource(Res.string.dashboard_title),
         subtitle = state.business.name,
+        onMenu = onOpenMenu,
     ) {
         InfoCard(stringResource(Res.string.dashboard_today_title), stringResource(Res.string.dashboard_today_subtitle))
         InfoCard(stringResource(Res.string.analytics_orders_title), stringResource(Res.string.dashboard_orders_subtitle), open, onOpenOrders)
@@ -193,7 +208,7 @@ fun DashboardScreen(
         if (state.canSwitchBusiness) {
             InfoCard(stringResource(Res.string.home_change_business), stringResource(Res.string.dashboard_change_business_subtitle), stringResource(Res.string.common_change), onChangeBusinessClick)
         }
-        InfoCard(stringResource(Res.string.dashboard_account_title), state.phone, stringResource(Res.string.common_open), onOpenAccount)
+        InfoCard(stringResource(Res.string.dashboard_account_title), state.phone, stringResource(Res.string.common_open), onOpenMenu)
     }
 }
 
@@ -208,6 +223,8 @@ fun BusinessSettingsScreen(
     var name by remember(workspace?.name) { mutableStateOf(workspace?.name.orEmpty()) }
     var phone by remember(workspace?.phone) { mutableStateOf(workspace?.phone.orEmpty()) }
     var logo by remember(workspace?.id) { mutableStateOf<PickedPhoto?>(null) }
+    var workTime by remember(workspace?.id) { mutableStateOf(workspace?.workTime ?: WeeklySchedule()) }
+    var breakTime by remember(workspace?.id) { mutableStateOf(workspace?.breakTime ?: WeeklySchedule()) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val logoPicker = rememberPhotoPickerLauncher(onPhotoPicked = { logo = it })
@@ -230,6 +247,19 @@ fun BusinessSettingsScreen(
             Text(logo?.fileName ?: stringResource(Res.string.business_settings_logo_action))
         }
 
+        ScheduleEditor(
+            title = stringResource(Res.string.business_settings_worktime_title),
+            schedule = workTime,
+            enabled = !saving,
+            onChange = { workTime = it },
+        )
+        ScheduleEditor(
+            title = stringResource(Res.string.business_settings_breaktime_title),
+            schedule = breakTime,
+            enabled = !saving,
+            onChange = { breakTime = it },
+        )
+
         error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
         Button(
@@ -240,7 +270,14 @@ fun BusinessSettingsScreen(
                 error = null
                 scope.launch {
                     runCatching {
-                        repository.saveBusinessDetails(businessId = id, name = name, contactPhone = phone, logoPhoto = logo)
+                        repository.saveBusinessDetails(
+                            businessId = id,
+                            name = name,
+                            contactPhone = phone,
+                            logoPhoto = logo,
+                            workTime = workTime,
+                            breakTime = breakTime,
+                        )
                     }.onSuccess { onSaved() }
                         .onFailure { saving = false; error = it.message }
                 }
@@ -256,6 +293,78 @@ fun BusinessSettingsScreen(
         }
     }
 }
+
+/** Default interval used when a previously-closed day is switched on. */
+private val DefaultDayInterval = DayInterval(start = "09:00", stop = "18:00")
+
+@Composable
+private fun ScheduleEditor(
+    title: String,
+    schedule: WeeklySchedule,
+    enabled: Boolean,
+    onChange: (WeeklySchedule) -> Unit,
+) {
+    Text(title, style = T.t.t1, color = T.c.onBackground, modifier = Modifier.padding(top = T.d.sm))
+    Weekday.entries.forEach { day ->
+        val interval = schedule[day]
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = T.d.xxs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(day.label(), style = T.t.t3, color = T.c.onBackground, modifier = Modifier.width(44.dp))
+            Switch(
+                checked = interval != null,
+                onCheckedChange = { on -> onChange(schedule.with(day, if (on) DefaultDayInterval else null)) },
+                enabled = enabled,
+            )
+            Spacer(Modifier.width(T.d.sm))
+            if (interval != null) {
+                TimeField(
+                    value = interval.start,
+                    enabled = enabled,
+                    onValueChange = { onChange(schedule.with(day, interval.copy(start = it))) },
+                )
+                Text(" – ", style = T.t.t3, color = T.c.dark7)
+                TimeField(
+                    value = interval.stop,
+                    enabled = enabled,
+                    onValueChange = { onChange(schedule.with(day, interval.copy(stop = it))) },
+                )
+            } else {
+                Text(stringResource(Res.string.business_settings_day_closed), style = T.t.t3, color = T.c.dark7)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimeField(
+    value: String,
+    enabled: Boolean,
+    onValueChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { onValueChange(it.filter { ch -> ch.isDigit() || ch == ':' }.take(5)) },
+        modifier = Modifier.width(96.dp),
+        enabled = enabled,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+    )
+}
+
+@Composable
+private fun Weekday.label(): String = stringResource(
+    when (this) {
+        Weekday.MONDAY -> Res.string.weekday_mon
+        Weekday.TUESDAY -> Res.string.weekday_tue
+        Weekday.WEDNESDAY -> Res.string.weekday_wed
+        Weekday.THURSDAY -> Res.string.weekday_thu
+        Weekday.FRIDAY -> Res.string.weekday_fri
+        Weekday.SATURDAY -> Res.string.weekday_sat
+        Weekday.SUNDAY -> Res.string.weekday_sun
+    }
+)
 
 @Composable
 fun ServicesScreen(

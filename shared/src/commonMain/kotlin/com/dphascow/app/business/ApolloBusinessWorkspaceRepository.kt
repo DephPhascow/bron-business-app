@@ -11,11 +11,14 @@ import com.dphascow.app.graphql.SpecialisationsQuery
 import com.dphascow.app.graphql.UpdateBookingMutation
 import com.dphascow.app.graphql.UpdateBusinessMutation
 import com.dphascow.app.graphql.UpdateEmployeesMutation
+import com.dphascow.app.graphql.fragment.WorkTimeFields
 import com.dphascow.app.graphql.type.EmployeeRoleEnum
+import com.dphascow.app.graphql.type.FromToTimeInput
 import com.dphascow.app.graphql.type.ResultStatus
 import com.dphascow.app.graphql.type.UpdateBooking
 import com.dphascow.app.graphql.type.UpdateBusiness
 import com.dphascow.app.graphql.type.UpdateEmployee
+import com.dphascow.app.graphql.type.WorkTimeInput
 import com.dphascow.app.repositories.ApiAuthClient
 import com.dphascow.app.repositories.FileUploader
 import com.dphascow.app.repositories.Requester
@@ -90,6 +93,8 @@ class ApolloBusinessWorkspaceRepository(
                     status = booking.status.toDomain(),
                 )
             },
+            workTime = business.workTime?.workTimeFields.toSchedule(),
+            breakTime = business.breakTime?.workTimeFields.toSchedule(),
         )
     }
 
@@ -222,6 +227,8 @@ class ApolloBusinessWorkspaceRepository(
         name: String?,
         contactPhone: String?,
         logoPhoto: PickedPhoto?,
+        workTime: WeeklySchedule,
+        breakTime: WeeklySchedule,
     ) {
         val logoUrl = logoPhoto?.let { fileUploader.uploadImage(it.bytes, it.fileName, it.mimeType) }
 
@@ -229,6 +236,8 @@ class ApolloBusinessWorkspaceRepository(
             name = Optional.presentIfNotNull(name?.trim()?.ifBlank { null }),
             contactPhone = Optional.presentIfNotNull(contactPhone?.trim()?.ifBlank { null }),
             logoUrl = Optional.presentIfNotNull(logoUrl),
+            workTime = workTime.toInput(),
+            breakTime = breakTime.toInput(),
         )
         val response = requester.requestMutation(
             UpdateBusinessMutation(pk = businessId.toIntRequired("business id"), input = input)
@@ -277,4 +286,42 @@ class ApolloBusinessWorkspaceRepository(
         BookingStatus.CLIENT_MISSING -> ResultStatus.CLIENT_MISSING
         BookingStatus.UNKNOWN -> ResultStatus.WAITING
     }
+
+    /** Maps the `WorkTimeFields` GraphQL fragment into the domain [WeeklySchedule]. */
+    private fun WorkTimeFields?.toSchedule(): WeeklySchedule {
+        if (this == null) return WeeklySchedule()
+        val days = buildMap {
+            monday?.let { put(Weekday.MONDAY, DayInterval(it.start.toHhMm(), it.stop.toHhMm())) }
+            tuesday?.let { put(Weekday.TUESDAY, DayInterval(it.start.toHhMm(), it.stop.toHhMm())) }
+            wednesday?.let { put(Weekday.WEDNESDAY, DayInterval(it.start.toHhMm(), it.stop.toHhMm())) }
+            thursday?.let { put(Weekday.THURSDAY, DayInterval(it.start.toHhMm(), it.stop.toHhMm())) }
+            friday?.let { put(Weekday.FRIDAY, DayInterval(it.start.toHhMm(), it.stop.toHhMm())) }
+            saturday?.let { put(Weekday.SATURDAY, DayInterval(it.start.toHhMm(), it.stop.toHhMm())) }
+            sunday?.let { put(Weekday.SUNDAY, DayInterval(it.start.toHhMm(), it.stop.toHhMm())) }
+        }
+        return WeeklySchedule(days)
+    }
+
+    /** Builds the GraphQL [WorkTimeInput]; an empty schedule is left absent so the server keeps its value. */
+    private fun WeeklySchedule.toInput(): Optional<WorkTimeInput?> {
+        if (isEmpty) return Optional.Absent
+        return Optional.present(
+            WorkTimeInput(
+                monday = this[Weekday.MONDAY].toInput(),
+                tuesday = this[Weekday.TUESDAY].toInput(),
+                wednesday = this[Weekday.WEDNESDAY].toInput(),
+                thursday = this[Weekday.THURSDAY].toInput(),
+                friday = this[Weekday.FRIDAY].toInput(),
+                saturday = this[Weekday.SATURDAY].toInput(),
+                sunday = this[Weekday.SUNDAY].toInput(),
+            )
+        )
+    }
+
+    private fun DayInterval?.toInput(): Optional<FromToTimeInput?> =
+        if (this == null) Optional.Absent
+        else Optional.present(FromToTimeInput(start = start, stop = stop))
+
+    /** The `Time` scalar comes back as ISO time (e.g. "08:00:00"); the UI only needs "HH:mm". */
+    private fun String.toHhMm(): String = if (length >= 5) substring(0, 5) else this
 }

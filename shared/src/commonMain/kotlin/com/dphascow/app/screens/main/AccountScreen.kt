@@ -1,14 +1,22 @@
 package com.dphascow.app.screens.main
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -39,47 +47,79 @@ import ui.theme.T
 
 private val LANGUAGES = listOf("ru" to "Русский", "uz" to "O‘zbek", "en" to "English")
 
+/**
+ * Navigation drawer: links to the Account and Settings pages. It only navigates —
+ * the pages themselves hold their content.
+ */
+@Composable
+fun AccountDrawer(
+    onOpenAccount: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    ModalDrawerSheet {
+        Column(
+            modifier = Modifier.padding(T.d.md),
+            verticalArrangement = Arrangement.spacedBy(T.d.xs),
+        ) {
+            Text(
+                stringResource(Res.string.account_menu_title),
+                color = T.c.onBackground,
+                style = T.t.headingH3,
+                modifier = Modifier.padding(T.d.sm),
+            )
+            NavigationDrawerItem(
+                label = { Text(stringResource(Res.string.account_title)) },
+                icon = { Icon(Icons.Outlined.Person, contentDescription = null) },
+                selected = false,
+                onClick = onOpenAccount,
+            )
+            NavigationDrawerItem(
+                label = { Text(stringResource(Res.string.settings_title)) },
+                icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                selected = false,
+                onClick = onOpenSettings,
+            )
+        }
+    }
+}
+
+/** Account page: the signed-in user's profile. */
 @Composable
 fun AccountScreen(
     profileRepository: ProfileRepository?,
-    lang: String,
-    theme: ThemeMode,
-    onLangChange: (String) -> Unit,
-    onThemeChange: (ThemeMode) -> Unit,
     onBack: () -> Unit,
-    onLogout: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
-    var profile by remember { mutableStateOf<MeProfile?>(null) }
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
-    var patronymic by remember { mutableStateOf("") }
-    var notifications by remember { mutableStateOf(true) }
-    var avatar by remember { mutableStateOf<PickedPhoto?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var saving by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    val avatarPicker = rememberPhotoPickerLauncher(onPhotoPicked = { avatar = it })
-
-    LaunchedEffect(profileRepository) {
-        if (profileRepository == null) {
-            loading = false
-            return@LaunchedEffect
-        }
-        loading = true
-        runCatching { profileRepository.loadMe() }
-            .onSuccess { me ->
-                profile = me
-                firstName = me.firstName.orEmpty()
-                lastName = me.lastName.orEmpty()
-                patronymic = me.patronymic.orEmpty()
-                notifications = me.confirmNotifications
-                loading = false
-            }
-            .onFailure { error = it.message; loading = false }
-    }
-
     PageLayout(stringResource(Res.string.account_title), stringResource(Res.string.account_subtitle), onBack) {
+        val scope = rememberCoroutineScope()
+        var profile by remember { mutableStateOf<MeProfile?>(null) }
+        var firstName by remember { mutableStateOf("") }
+        var lastName by remember { mutableStateOf("") }
+        var patronymic by remember { mutableStateOf("") }
+        var notifications by remember { mutableStateOf(true) }
+        var avatar by remember { mutableStateOf<PickedPhoto?>(null) }
+        var loading by remember { mutableStateOf(true) }
+        var saving by remember { mutableStateOf(false) }
+        var error by remember { mutableStateOf<String?>(null) }
+        val avatarPicker = rememberPhotoPickerLauncher(onPhotoPicked = { avatar = it })
+
+        LaunchedEffect(profileRepository) {
+            if (profileRepository == null) {
+                loading = false
+                return@LaunchedEffect
+            }
+            loading = true
+            runCatching { profileRepository.loadMe() }
+                .onSuccess { me ->
+                    profile = me
+                    firstName = me.firstName.orEmpty()
+                    lastName = me.lastName.orEmpty()
+                    patronymic = me.patronymic.orEmpty()
+                    notifications = me.confirmNotifications
+                    loading = false
+                }
+                .onFailure { error = it.message; loading = false }
+        }
+
         if (loading) {
             CircularProgressIndicator(color = T.c.primary)
         } else {
@@ -139,8 +179,20 @@ fun AccountScreen(
                 }
             }
         }
+    }
+}
 
-        // App settings
+/** Settings page: language, theme and logout. */
+@Composable
+fun SettingsScreen(
+    lang: String,
+    theme: ThemeMode,
+    onLangChange: (String) -> Unit,
+    onThemeChange: (ThemeMode) -> Unit,
+    onBack: () -> Unit,
+    onLogout: () -> Unit,
+) {
+    PageLayout(stringResource(Res.string.settings_title), stringResource(Res.string.settings_subtitle), onBack) {
         Text(stringResource(Res.string.account_language), color = T.c.dark7, style = T.t.t4SamiBold)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
             LANGUAGES.forEach { (code, title) ->

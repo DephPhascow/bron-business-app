@@ -93,7 +93,10 @@
     <string name="chat_input_hint">Xabar</string>
     <string name="chat_send">Yuborish</string>
     <string name="account_title">Akkaunt</string>
-    <string name="account_subtitle">Profil, til va mavzu.</string>
+    <string name="account_subtitle">Profil ma’lumotlaringiz.</string>
+    <string name="account_menu_title">Menyu</string>
+    <string name="settings_title">Sozlamalar</string>
+    <string name="settings_subtitle">Til, mavzu va chiqish.</string>
     <string name="account_first_name">Ism</string>
     <string name="account_last_name">Familiya</string>
     <string name="account_patronymic">Otasining ismi</string>
@@ -110,6 +113,16 @@
     <string name="business_settings_phone_label">Telefon</string>
     <string name="business_settings_logo_action">Logotip tanlash</string>
     <string name="business_settings_address_label">Manzil</string>
+    <string name="business_settings_worktime_title">Ish vaqti</string>
+    <string name="business_settings_breaktime_title">Tanaffus</string>
+    <string name="business_settings_day_closed">Dam olish</string>
+    <string name="weekday_mon">Du</string>
+    <string name="weekday_tue">Se</string>
+    <string name="weekday_wed">Ch</string>
+    <string name="weekday_thu">Pa</string>
+    <string name="weekday_fri">Ju</string>
+    <string name="weekday_sat">Sh</string>
+    <string name="weekday_sun">Ya</string>
     <string name="employees_title">Xodimlar</string>
     <string name="employees_subtitle">Biznes jamoasi va kirish rollari.</string>
     <string name="employees_add_title">Xodim qo‘shish</string>
@@ -141,6 +154,8 @@
     <string name="employee_invite_code_hint">%1$s raqamiga yuborilgan kodni kiriting.</string>
     <string name="employee_invite_verify_action">Tasdiqlash</string>
     <string name="employee_invite_verified">%1$s raqami tasdiqlandi. Rol va mutaxassislikni tanlang.</string>
+    <string name="employee_add_self">O‘zimni xodim sifatida qo‘shish</string>
+    <string name="employee_add_self_hint">Siz xodim sifatida qo‘shilasiz. Rol va mutaxassislikni tanlang.</string>
     <string name="employee_invite_failed">Kod yuborilmadi. Raqamni tekshiring.</string>
     <string name="services_title">Xizmatlar</string>
     <string name="services_subtitle">Xizmatlar katalogi, narxlar va davomiylik.</string>

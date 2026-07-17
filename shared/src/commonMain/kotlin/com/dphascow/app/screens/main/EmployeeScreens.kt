@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -182,11 +183,16 @@ fun EmployeeEditScreen(
     businessId: String,
     lang: String,
     employee: BusinessEmployee?,
+    currentUserId: String? = null,
+    isCurrentUserEmployee: Boolean = false,
     onBack: () -> Unit,
     onSaved: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val isAdd = employee == null
+    // Offer "add myself" only when adding and the signed-in user is not yet an employee.
+    val canAddSelf = isAdd && currentUserId != null && !isCurrentUserEmployee
+    var addSelf by remember { mutableStateOf(false) }
 
     var specialisations by remember { mutableStateOf<List<Specialisation>>(emptyList()) }
     LaunchedEffect(repository, lang) {
@@ -212,7 +218,14 @@ fun EmployeeEditScreen(
     val title = if (isAdd) stringResource(Res.string.employee_add_title) else stringResource(Res.string.employee_edit_title)
 
     PageLayout(title, stringResource(Res.string.employee_edit_subtitle), onBack) {
-        if (isAdd && stage != InviteStage.VERIFIED) {
+        if (canAddSelf) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
+                Checkbox(checked = addSelf, onCheckedChange = { addSelf = it; error = null })
+                Text(stringResource(Res.string.employee_add_self), color = T.c.onSurface, style = T.t.t3SemiBold)
+            }
+        }
+
+        if (isAdd && !addSelf && stage != InviteStage.VERIFIED) {
             // Step 1-2: invite by phone + confirm code.
             when (stage) {
                 InviteStage.ENTER_PHONE -> {
@@ -286,10 +299,18 @@ fun EmployeeEditScreen(
         } else {
             // Step 3 (add) or edit: role / specialisation / active + save.
             if (isAdd) {
-                Text(stringResource(Res.string.employee_invite_verified, phone), color = T.c.dark7, style = T.t.t3)
+                val header = if (addSelf) {
+                    stringResource(Res.string.employee_add_self_hint)
+                } else {
+                    stringResource(Res.string.employee_invite_verified, phone)
+                }
+                Text(header, color = T.c.dark7, style = T.t.t3)
             }
 
-            RoleSelector(role) { role = it }
+            // Adding yourself defaults to the specialist role — no role picker needed.
+            if (!addSelf) {
+                RoleSelector(role) { role = it }
+            }
             SpecialisationSelector(specialisations, specialisationId) { specialisationId = it }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
                 Switch(checked = isActive, onCheckedChange = { isActive = it })
@@ -298,10 +319,11 @@ fun EmployeeEditScreen(
 
             error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
+            val effectiveUserId = if (addSelf) currentUserId else invitedUserId
             SubmitButton(
                 text = if (isAdd) stringResource(Res.string.employee_add_submit) else stringResource(Res.string.common_save),
                 loading = submitting,
-                enabled = repository != null && specialisationId != null,
+                enabled = repository != null && specialisationId != null && (!isAdd || effectiveUserId != null),
             ) {
                 submitting = true
                 error = null
@@ -310,8 +332,8 @@ fun EmployeeEditScreen(
                         if (isAdd) {
                             repository!!.addEmployee(
                                 businessId = businessId,
-                                userId = invitedUserId!!,
-                                role = role,
+                                userId = effectiveUserId!!,
+                                role = if (addSelf) EmployeeRole.SPECIALIST else role,
                                 specialisationId = specialisationId,
                                 isActive = isActive,
                                 lang = lang,

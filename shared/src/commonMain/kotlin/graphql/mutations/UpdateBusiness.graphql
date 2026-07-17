@@ -8,5 +8,7 @@ mutation UpdateBusiness($pk: Int!, $input: UpdateBusiness!) {
     personalIdentificationNumber
     logoUrl
     contactPhone
+    workTime { ...WorkTimeFields }
+    breakTime { ...WorkTimeFields }
   }
 }

@@ -43,12 +43,17 @@ interface BusinessWorkspaceRepository {
 
     suspend fun updateBookingStatus(bookingId: String, status: BookingStatus)
 
-    /** Saves business details. If [logoPhoto] is provided it is uploaded first and stored as the logo. */
+    /**
+     * Saves business details. If [logoPhoto] is provided it is uploaded first and stored as the logo.
+     * An empty [workTime]/[breakTime] schedule leaves the corresponding value untouched on the server.
+     */
     suspend fun saveBusinessDetails(
         businessId: String,
         name: String?,
         contactPhone: String?,
         logoPhoto: PickedPhoto?,
+        workTime: WeeklySchedule = WeeklySchedule(),
+        breakTime: WeeklySchedule = WeeklySchedule(),
     )
 
     /** Uploads a photo and attaches it to the business gallery. */

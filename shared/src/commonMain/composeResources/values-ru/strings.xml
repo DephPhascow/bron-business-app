@@ -93,7 +93,10 @@
     <string name="chat_input_hint">Сообщение</string>
     <string name="chat_send">Отправить</string>
     <string name="account_title">Аккаунт</string>
-    <string name="account_subtitle">Профиль, язык и тема.</string>
+    <string name="account_subtitle">Данные вашего профиля.</string>
+    <string name="account_menu_title">Меню</string>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_subtitle">Язык, тема и выход.</string>
     <string name="account_first_name">Имя</string>
     <string name="account_last_name">Фамилия</string>
     <string name="account_patronymic">Отчество</string>
@@ -110,6 +113,16 @@
     <string name="business_settings_phone_label">Телефон</string>
     <string name="business_settings_logo_action">Выбрать логотип</string>
     <string name="business_settings_address_label">Адрес</string>
+    <string name="business_settings_worktime_title">Рабочее время</string>
+    <string name="business_settings_breaktime_title">Перерыв</string>
+    <string name="business_settings_day_closed">Выходной</string>
+    <string name="weekday_mon">Пн</string>
+    <string name="weekday_tue">Вт</string>
+    <string name="weekday_wed">Ср</string>
+    <string name="weekday_thu">Чт</string>
+    <string name="weekday_fri">Пт</string>
+    <string name="weekday_sat">Сб</string>
+    <string name="weekday_sun">Вс</string>
     <string name="employees_title">Сотрудники</string>
     <string name="employees_subtitle">Команда бизнеса и роли доступа.</string>
     <string name="employees_add_title">Добавить сотрудника</string>
@@ -141,6 +154,8 @@
     <string name="employee_invite_code_hint">Введите код, отправленный на %1$s.</string>
     <string name="employee_invite_verify_action">Подтвердить</string>
     <string name="employee_invite_verified">Телефон %1$s подтверждён. Укажите роль и специализацию.</string>
+    <string name="employee_add_self">Добавить себя как сотрудника</string>
+    <string name="employee_add_self_hint">Вы будете добавлены как сотрудник. Укажите роль и специализацию.</string>
     <string name="employee_invite_failed">Не удалось отправить код. Проверьте номер.</string>
     <string name="services_title">Услуги</string>
     <string name="services_subtitle">Каталог услуг, цены и длительность.</string>

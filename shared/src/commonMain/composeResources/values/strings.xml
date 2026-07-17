@@ -94,7 +94,10 @@
     <string name="chat_input_hint">Message</string>
     <string name="chat_send">Send</string>
     <string name="account_title">Account</string>
-    <string name="account_subtitle">Profile, language and theme.</string>
+    <string name="account_subtitle">Your profile details.</string>
+    <string name="account_menu_title">Menu</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_subtitle">Language, theme and sign out.</string>
     <string name="account_first_name">First name</string>
     <string name="account_last_name">Last name</string>
     <string name="account_patronymic">Patronymic</string>
@@ -111,6 +114,16 @@
     <string name="business_settings_phone_label">Phone</string>
     <string name="business_settings_logo_action">Choose logo</string>
     <string name="business_settings_address_label">Address</string>
+    <string name="business_settings_worktime_title">Work time</string>
+    <string name="business_settings_breaktime_title">Break time</string>
+    <string name="business_settings_day_closed">Closed</string>
+    <string name="weekday_mon">Mon</string>
+    <string name="weekday_tue">Tue</string>
+    <string name="weekday_wed">Wed</string>
+    <string name="weekday_thu">Thu</string>
+    <string name="weekday_fri">Fri</string>
+    <string name="weekday_sat">Sat</string>
+    <string name="weekday_sun">Sun</string>
     <string name="employees_title">Employees</string>
     <string name="employees_subtitle">Business team and access roles.</string>
     <string name="employees_add_title">Add employee</string>
@@ -142,6 +155,8 @@
     <string name="employee_invite_code_hint">Enter the code sent to %1$s.</string>
     <string name="employee_invite_verify_action">Confirm</string>
     <string name="employee_invite_verified">Phone %1$s confirmed. Set the role and specialisation.</string>
+    <string name="employee_add_self">Add myself as an employee</string>
+    <string name="employee_add_self_hint">You will be added as an employee. Set the role and specialisation.</string>
     <string name="employee_invite_failed">Could not send the code. Check the number.</string>
     <string name="services_title">Services</string>
     <string name="services_subtitle">Service catalog, prices and duration.</string>

@@ -2,13 +2,18 @@ package com.dphascow.app.screens.main
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import com.dphascow.app.auth.AppUiState
 import com.dphascow.app.business.BusinessWorkspace
 import com.dphascow.app.business.BusinessWorkspaceRepository
@@ -32,7 +37,10 @@ fun MainShell(
     onLogoutClick: () -> Unit,
 ) {
     val navigator = remember { MainNavigator() }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
     var workspace by remember(state.business.id) { mutableStateOf<BusinessWorkspace?>(null) }
+    var currentUserId by remember(profileRepository) { mutableStateOf<String?>(null) }
     var loading by remember(state.business.id) { mutableStateOf(true) }
     var loadError by remember(state.business.id) { mutableStateOf<String?>(null) }
     var reloadKey by remember(state.business.id) { mutableStateOf(0) }
@@ -58,10 +66,16 @@ fun MainShell(
     }
     val reload = { reloadKey++ }
 
+    // The signed-in user's pk — used e.g. to offer "add myself as an employee".
+    LaunchedEffect(profileRepository) {
+        currentUserId = runCatching { profileRepository?.loadMe()?.id }.getOrNull()
+    }
+
     val route = navigator.currentRoute
     // Content routes need the workspace; dashboard, account and chat screens don't.
     val needsWorkspace = route != AppRoute.Dashboard &&
         route != AppRoute.Account &&
+        route != AppRoute.Settings &&
         route != AppRoute.Chats &&
         route !is AppRoute.Conversation
     if (needsWorkspace && (loading || loadError != null)) {
@@ -76,6 +90,22 @@ fun MainShell(
         return
     }
 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = route == AppRoute.Dashboard || drawerState.isOpen,
+        drawerContent = {
+            AccountDrawer(
+                onOpenAccount = {
+                    scope.launch { drawerState.close() }
+                    navigator.open(AppRoute.Account)
+                },
+                onOpenSettings = {
+                    scope.launch { drawerState.close() }
+                    navigator.open(AppRoute.Settings)
+                },
+            )
+        },
+    ) {
     Column(modifier = Modifier.fillMaxSize()) {
         when (route) {
             AppRoute.Dashboard -> DashboardScreen(
@@ -89,7 +119,7 @@ fun MainShell(
                 onOpenReviews = { navigator.open(AppRoute.Reviews) },
                 onOpenChat = { navigator.open(AppRoute.Chats) },
                 onChangeBusinessClick = onChangeBusinessClick,
-                onOpenAccount = { navigator.open(AppRoute.Account) },
+                onOpenMenu = { scope.launch { drawerState.open() } },
             )
 
             AppRoute.BusinessSettings -> BusinessSettingsScreen(
@@ -128,6 +158,9 @@ fun MainShell(
                 businessId = state.business.id,
                 lang = lang,
                 employee = route.employeeId?.let { id -> workspace?.employees?.firstOrNull { it.id == id } },
+                currentUserId = currentUserId,
+                isCurrentUserEmployee = currentUserId != null &&
+                    workspace?.employees?.any { it.userId == currentUserId } == true,
                 onBack = { navigator.back() },
                 onSaved = {
                     reload()
@@ -193,6 +226,10 @@ fun MainShell(
 
             AppRoute.Account -> AccountScreen(
                 profileRepository = profileRepository,
+                onBack = { navigator.back() },
+            )
+
+            AppRoute.Settings -> SettingsScreen(
                 lang = lang,
                 theme = theme,
                 onLangChange = onLangChange,
@@ -213,6 +250,7 @@ fun MainShell(
                 onBack = { navigator.back() },
             )
         }
+    }
     }
 }
 

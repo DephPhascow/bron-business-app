@@ -1,0 +1,9 @@
+fragment WorkTimeFields on WorkTimeType {
+  monday { start stop }
+  tuesday { start stop }
+  wednesday { start stop }
+  thursday { start stop }
+  friday { start stop }
+  saturday { start stop }
+  sunday { start stop }
+}

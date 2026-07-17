@@ -13,7 +13,37 @@ data class BusinessWorkspace(
     val services: List<BusinessService>,
     val gallery: List<BusinessGalleryPhoto>,
     val orders: List<BusinessOrder>,
+    val workTime: WeeklySchedule = WeeklySchedule(),
+    val breakTime: WeeklySchedule = WeeklySchedule(),
 )
+
+enum class Weekday {
+    MONDAY,
+    TUESDAY,
+    WEDNESDAY,
+    THURSDAY,
+    FRIDAY,
+    SATURDAY,
+    SUNDAY,
+}
+
+/** A single day's opening interval. [start] and [stop] are "HH:mm" strings. */
+data class DayInterval(
+    val start: String,
+    val stop: String,
+)
+
+/** A week of opening (or break) intervals, keyed by weekday. Days without an interval are closed. */
+data class WeeklySchedule(
+    val days: Map<Weekday, DayInterval> = emptyMap(),
+) {
+    operator fun get(day: Weekday): DayInterval? = days[day]
+
+    fun with(day: Weekday, interval: DayInterval?): WeeklySchedule =
+        WeeklySchedule(if (interval == null) days - day else days + (day to interval))
+
+    val isEmpty: Boolean get() = days.isEmpty()
+}
 
 data class BusinessReview(
     val mark: Int,
