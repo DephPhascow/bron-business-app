@@ -17,19 +17,22 @@ object AppDependencies {
     fun createRequester(prefs: Prefs, onAuthError: () -> Unit): Requester =
         Requester(authPref = prefs, onAuthenticateError = onAuthError)
 
-    fun createAuthRepository(requester: Requester): AuthRepository =
-        ApolloAuthRepository(ApiAuthClient(requester))
+    fun createAuthRepository(requester: Requester, prefs: Prefs): AuthRepository =
+        ApolloAuthRepository(ApiAuthClient(requester, prefs.deviceId))
 
     fun createMockAuthRepository(): AuthRepository = MockAuthRepository()
 
-    fun createBusinessWorkspaceRepository(requester: Requester): BusinessWorkspaceRepository =
-        ApolloBusinessWorkspaceRepository(requester, ApiAuthClient(requester), FileUploader())
+    fun createBusinessWorkspaceRepository(requester: Requester, prefs: Prefs): BusinessWorkspaceRepository =
+        ApolloBusinessWorkspaceRepository(requester, fileUploader(requester, prefs))
 
-    fun createProfileRepository(requester: Requester): ProfileRepository =
-        ApolloProfileRepository(requester, FileUploader())
+    fun createProfileRepository(requester: Requester, prefs: Prefs): ProfileRepository =
+        ApolloProfileRepository(requester, fileUploader(requester, prefs))
 
     fun createChatRepository(requester: Requester, prefs: Prefs): ChatRepository =
-        ApolloChatRepository(requester, FileUploader(), prefs)
+        ApolloChatRepository(requester, fileUploader(requester, prefs), prefs)
+
+    private fun fileUploader(requester: Requester, prefs: Prefs): FileUploader =
+        FileUploader(requester.tokenProvider, prefs.deviceId)
 
     fun createPushRepository(requester: Requester): PushRepository =
         ApolloPushRepository(requester)

@@ -1,0 +1,20 @@
+mutation BookClientForDate(
+  $businessId: Int!
+  $employeeId: Int!
+  $serviceIds: [Int!]!
+  $date: DateTime!
+  $clientPhone: String!
+  $clientName: String
+) {
+  bookClientForDate(
+    businessId: $businessId
+    employeeId: $employeeId
+    serviceIds: $serviceIds
+    date: $date
+    clientPhone: $clientPhone
+    clientName: $clientName
+  ) {
+    status
+    message
+  }
+}

@@ -63,6 +63,9 @@ import ui.theme.T
 private const val CODE_LENGTH = 4
 private const val RESEND_SECONDS = 40
 
+/** The server's limit window is 5 minutes, so that is how long we keep the button locked. */
+private const val RATE_LIMIT_SECONDS = 5 * 60
+
 @Composable
 fun AuthScreen(
     state: AppUiState.Auth,
@@ -96,6 +99,18 @@ private fun PhoneStage(
     onPhoneChanged: (String) -> Unit,
     onGetCodeClick: () -> Unit,
 ) {
+    // Hitting the limit here locks the button until the server's window has passed.
+    var cooldownLeft by remember { mutableStateOf(0) }
+    LaunchedEffect(state.error) {
+        if (state.error == AuthError.TOO_MANY_REQUESTS) cooldownLeft = RATE_LIMIT_SECONDS
+    }
+    LaunchedEffect(cooldownLeft) {
+        if (cooldownLeft > 0) {
+            delay(1000)
+            cooldownLeft--
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -149,7 +164,7 @@ private fun PhoneStage(
 
                 Button(
                     onClick = onGetCodeClick,
-                    enabled = !state.isSubmitting,
+                    enabled = !state.isSubmitting && cooldownLeft == 0,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     if (state.isSubmitting) {
@@ -158,6 +173,8 @@ private fun PhoneStage(
                             strokeWidth = 2.dp,
                             color = T.c.onPrimary,
                         )
+                    } else if (cooldownLeft > 0) {
+                        Text(text = stringResource(Res.string.auth_retry_in, formatCooldown(cooldownLeft)))
                     } else {
                         Text(text = stringResource(Res.string.auth_get_code_action))
                     }
@@ -183,9 +200,17 @@ private fun CodeStage(
         }
     }
 
-    // Auto-submit once the full code is entered.
-    LaunchedEffect(state.code) {
-        if (state.code.length == CODE_LENGTH && !state.isSubmitting) {
+    val rateLimited = state.error == AuthError.TOO_MANY_REQUESTS
+    // Over the limit the server refuses both resending and verifying, so the whole
+    // card waits out the window rather than just the resend link.
+    LaunchedEffect(state.error) {
+        if (rateLimited) secondsLeft = RATE_LIMIT_SECONDS
+    }
+
+    // Auto-submit once the full code is entered — but not while we are locked out,
+    // or every keystroke would spend another attempt.
+    LaunchedEffect(state.code, rateLimited) {
+        if (state.code.length == CODE_LENGTH && !state.isSubmitting && !rateLimited) {
             onVerifyClick()
         }
     }
@@ -222,7 +247,7 @@ private fun CodeStage(
             ) {
                 CodeInput(
                     code = state.code,
-                    enabled = !state.isSubmitting,
+                    enabled = !state.isSubmitting && !rateLimited,
                     onCodeChanged = onCodeChanged,
                 )
 
@@ -251,7 +276,11 @@ private fun CodeStage(
 
                 if (secondsLeft > 0) {
                     Text(
-                        text = stringResource(Res.string.auth_resend_in, secondsLeft),
+                        text = if (rateLimited) {
+                            stringResource(Res.string.auth_retry_in, formatCooldown(secondsLeft))
+                        } else {
+                            stringResource(Res.string.auth_resend_in, secondsLeft)
+                        },
                         color = T.c.dark7,
                         style = T.t.t4,
                         textAlign = TextAlign.Center,
@@ -343,6 +372,13 @@ private fun CodeInput(
     )
 }
 
+/** "4:59" — a five-minute lockout reads better as mm:ss than as raw seconds. */
+private fun formatCooldown(seconds: Int): String {
+    val minutes = seconds / 60
+    val rest = seconds % 60
+    return "$minutes:${rest.toString().padStart(2, '0')}"
+}
+
 /** Masks a phone number for display, e.g. "+998 ** ***-**-**". */
 fun maskPhone(phone: String): String {
     val digits = phone.filter { it.isDigit() }
@@ -358,6 +394,7 @@ private fun AuthError.asText(): String = when (this) {
     AuthError.CODE_SEND_FAILED -> stringResource(Res.string.auth_code_send_failed_error)
     AuthError.EMPTY_CODE -> stringResource(Res.string.auth_code_empty_error)
     AuthError.INVALID_CODE -> stringResource(Res.string.auth_code_invalid_error)
+    AuthError.TOO_MANY_REQUESTS -> stringResource(Res.string.auth_too_many_requests_error)
     AuthError.UNKNOWN -> stringResource(Res.string.auth_unknown_error)
 }
 

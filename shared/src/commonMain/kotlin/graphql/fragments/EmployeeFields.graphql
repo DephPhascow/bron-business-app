@@ -1,0 +1,20 @@
+fragment EmployeeFields on EmployeesType {
+  pk
+  role
+  isActive
+  userId
+  user {
+    pk
+    fullName
+    phone
+    email
+    imageUrl
+  }
+  specializations {
+    pk
+    name(lang: $lang)
+  }
+  services {
+    ...ServiceFields
+  }
+}

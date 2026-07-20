@@ -74,7 +74,8 @@ fun EmployeesScreen(
         workspace?.employees.orEmpty()
             .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
             .forEach { employee ->
-            val subtitle = listOfNotNull(employee.role.label(), employee.phone).joinToString(" · ")
+            val dismissed = stringResource(Res.string.employee_dismissed_label).takeIf { !employee.isActive }
+            val subtitle = listOfNotNull(employee.role.label(), employee.phone, dismissed).joinToString(" · ")
             InfoCard(employee.name, subtitle, stringResource(Res.string.common_open)) { onEmployeeClick(employee.id) }
         }
     }
@@ -168,15 +169,49 @@ fun EmployeeDetailsScreen(
             }
         }
 
-        OutlinedButton(
-            onClick = { confirmDelete = true },
-            enabled = !deleting && repository != null,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (deleting) {
-                CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.primary)
-            } else {
-                Text(stringResource(Res.string.employee_delete_action))
+        if (employee.isActive) {
+            OutlinedButton(
+                onClick = { confirmDelete = true },
+                enabled = !deleting && repository != null,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (deleting) {
+                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.primary)
+                } else {
+                    Text(stringResource(Res.string.employee_delete_action))
+                }
+            }
+        } else {
+            // Dismissal only deactivates, and hiring the same phone again reinstates
+            // the very same record instead of creating a duplicate.
+            OutlinedButton(
+                onClick = {
+                    val repo = repository ?: return@OutlinedButton
+                    val phone = employee.phone ?: return@OutlinedButton
+                    deleting = true
+                    error = null
+                    scope.launch {
+                        runCatching {
+                            repo.hireEmployee(
+                                businessId = businessId,
+                                phone = phone,
+                                role = employee.role,
+                                specialisationIds = employee.specialisations.map { it.id },
+                                lang = lang,
+                            )
+                        }
+                            .onSuccess { onDeleted() }
+                            .onFailure { deleting = false; error = it.message }
+                    }
+                },
+                enabled = !deleting && repository != null && employee.phone != null,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (deleting) {
+                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.primary)
+                } else {
+                    Text(stringResource(Res.string.employee_rehire_action))
+                }
             }
         }
     }
@@ -201,15 +236,13 @@ fun EmployeeDetailsScreen(
     }
 }
 
-private enum class InviteStage { ENTER_PHONE, ENTER_CODE, VERIFIED }
-
 @Composable
 fun EmployeeEditScreen(
     repository: BusinessWorkspaceRepository?,
     businessId: String,
     lang: String,
     employee: BusinessEmployee?,
-    currentUserId: String? = null,
+    currentUserPhone: String? = null,
     isCurrentUserEmployee: Boolean = false,
     onBack: () -> Unit,
     onSaved: () -> Unit,
@@ -217,7 +250,7 @@ fun EmployeeEditScreen(
     val scope = rememberCoroutineScope()
     val isAdd = employee == null
     // Offer "add myself" only when adding and the signed-in user is not yet an employee.
-    val canAddSelf = isAdd && currentUserId != null && !isCurrentUserEmployee
+    val canAddSelf = isAdd && !currentUserPhone.isNullOrBlank() && !isCurrentUserEmployee
     var addSelf by remember { mutableStateOf(false) }
 
     var specialisations by remember { mutableStateOf<List<Specialisation>>(emptyList()) }
@@ -232,164 +265,98 @@ fun EmployeeEditScreen(
     var specialisationIds by remember(employee) {
         mutableStateOf(employee?.specialisations.orEmpty().map { it.id }.toSet())
     }
-    var isActive by remember(employee) { mutableStateOf(employee?.isActive ?: true) }
-
-    // Invite flow (add mode only)
+    // Hiring takes a phone number: the account is created server-side if unknown.
     var phone by remember { mutableStateOf("") }
-    var code by remember { mutableStateOf("") }
-    var stage by remember { mutableStateOf(InviteStage.ENTER_PHONE) }
-    var invitedUserId by remember { mutableStateOf<String?>(null) }
 
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val inviteFailedText = stringResource(Res.string.employee_invite_failed)
     val title = if (isAdd) stringResource(Res.string.employee_add_title) else stringResource(Res.string.employee_edit_title)
+    val effectivePhone = if (addSelf) currentUserPhone.orEmpty() else phone
 
     PageLayout(title, stringResource(Res.string.employee_edit_subtitle), onBack) {
-        if (canAddSelf) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
-                Checkbox(checked = addSelf, onCheckedChange = { addSelf = it; error = null })
-                Text(stringResource(Res.string.employee_add_self), color = T.c.onSurface, style = T.t.t3SemiBold)
+        if (isAdd) {
+            if (canAddSelf) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
+                    Checkbox(checked = addSelf, onCheckedChange = { addSelf = it; error = null })
+                    Text(stringResource(Res.string.employee_add_self), color = T.c.onSurface, style = T.t.t3SemiBold)
+                }
             }
-        }
 
-        if (isAdd && !addSelf && stage != InviteStage.VERIFIED) {
-            // Step 1-2: invite by phone + confirm code.
-            when (stage) {
-                InviteStage.ENTER_PHONE -> {
-                    OutlinedTextField(
-                        value = phone,
-                        onValueChange = { phone = it; error = null },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(Res.string.auth_phone_label)) },
-                        placeholder = { Text(stringResource(Res.string.auth_phone_placeholder)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    )
-                    error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
-                    SubmitButton(
-                        text = stringResource(Res.string.employee_invite_action),
-                        loading = submitting,
-                        enabled = repository != null && phone.count { it.isDigit() } >= 9,
-                    ) {
-                        submitting = true
-                        error = null
-                        scope.launch {
-                            runCatching { repository!!.requireEmployeeCode(phone) }
-                                .onSuccess { sent ->
-                                    submitting = false
-                                    if (sent) stage = InviteStage.ENTER_CODE
-                                    else error = inviteFailedText
-                                }
-                                .onFailure { submitting = false; error = it.message }
-                        }
-                    }
-                }
-
-                InviteStage.ENTER_CODE -> {
-                    Text(
-                        stringResource(Res.string.employee_invite_code_hint, phone),
-                        color = T.c.dark7,
-                        style = T.t.t3,
-                    )
-                    OutlinedTextField(
-                        value = code,
-                        onValueChange = { raw -> code = raw.filter(Char::isDigit).take(4); error = null },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(Res.string.employee_invite_code_label)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    )
-                    error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
-                    ActionRow(
-                        primaryText = stringResource(Res.string.employee_invite_verify_action),
-                        onPrimaryClick = {
-                            if (code.length != 4 || repository == null) return@ActionRow
-                            submitting = true
-                            error = null
-                            scope.launch {
-                                runCatching { repository!!.verifyEmployeePhone(phone, code) }
-                                    .onSuccess { userId ->
-                                        submitting = false
-                                        invitedUserId = userId
-                                        stage = InviteStage.VERIFIED
-                                    }
-                                    .onFailure { submitting = false; error = it.message }
-                            }
-                        },
-                        secondaryText = stringResource(Res.string.common_back),
-                        onSecondaryClick = { stage = InviteStage.ENTER_PHONE; code = "" },
-                    )
-                }
-
-                InviteStage.VERIFIED -> Unit
+            if (addSelf) {
+                Text(stringResource(Res.string.employee_add_self_hint), color = T.c.dark7, style = T.t.t3)
+            } else {
+                Text(stringResource(Res.string.employee_hire_hint), color = T.c.dark7, style = T.t.t3)
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it; error = null },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(Res.string.auth_phone_label)) },
+                    placeholder = { Text(stringResource(Res.string.auth_phone_placeholder)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                )
             }
         } else {
-            // Step 3 (add) or edit: role / specialisation / active + save.
-            if (isAdd) {
-                val header = if (addSelf) {
-                    stringResource(Res.string.employee_add_self_hint)
-                } else {
-                    stringResource(Res.string.employee_invite_verified, phone)
-                }
-                Text(header, color = T.c.dark7, style = T.t.t3)
-            }
+            Text(employee!!.phone.orEmpty(), color = T.c.dark7, style = T.t.t3)
+        }
 
-            // Adding yourself defaults to the specialist role — no role picker needed.
-            if (!addSelf) {
-                RoleSelector(role) { role = it }
-            }
-            SpecialisationSelector(specialisations, specialisationIds) { id ->
-                specialisationIds = if (id in specialisationIds) specialisationIds - id else specialisationIds + id
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
-                Switch(checked = isActive, onCheckedChange = { isActive = it })
-                Text(stringResource(Res.string.employee_active_label), color = T.c.onSurface, style = T.t.t3SemiBold)
-            }
+        RoleSelector(role) { role = it }
+        SpecialisationSelector(specialisations, specialisationIds) { id ->
+            specialisationIds = if (id in specialisationIds) specialisationIds - id else specialisationIds + id
+        }
 
-            error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
+        error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
-            val effectiveUserId = if (addSelf) currentUserId else invitedUserId
-            SubmitButton(
-                text = if (isAdd) stringResource(Res.string.employee_add_submit) else stringResource(Res.string.common_save),
-                loading = submitting,
-                enabled = repository != null && specialisationIds.isNotEmpty() && (!isAdd || effectiveUserId != null),
-            ) {
-                submitting = true
-                error = null
-                scope.launch {
-                    val result = runCatching {
-                        if (isAdd) {
-                            repository!!.addEmployee(
+        SubmitButton(
+            text = if (isAdd) stringResource(Res.string.employee_add_submit) else stringResource(Res.string.common_save),
+            loading = submitting,
+            enabled = repository != null && specialisationIds.isNotEmpty() &&
+                (!isAdd || effectivePhone.count { it.isDigit() } >= MIN_PHONE_DIGITS),
+        ) {
+            submitting = true
+            error = null
+            scope.launch {
+                val result = runCatching {
+                    if (isAdd) {
+                        repository!!.hireEmployee(
+                            businessId = businessId,
+                            phone = effectivePhone,
+                            role = role,
+                            specialisationIds = specialisationIds.toList(),
+                            lang = lang,
+                        )
+                    } else {
+                        // Role and specialisations are separate mutations server-side.
+                        if (role != employee!!.role) {
+                            repository!!.updateEmployeeRole(
                                 businessId = businessId,
-                                userId = effectiveUserId!!,
-                                role = if (addSelf) EmployeeRole.SPECIALIST else role,
-                                specialisationIds = specialisationIds.toList(),
-                                isActive = isActive,
+                                employeeId = employee.id,
+                                role = role,
                                 lang = lang,
                             )
-                        } else {
-                            repository!!.updateEmployee(
+                        }
+                        if (specialisationIds != employee.specialisations.map { it.id }.toSet()) {
+                            repository!!.setEmployeeSpecialisations(
                                 businessId = businessId,
-                                employeeId = employee!!.id,
-                                role = role,
+                                employeeId = employee.id,
                                 specialisationIds = specialisationIds.toList(),
-                                isActive = isActive,
                                 lang = lang,
                             )
                         }
                     }
-                    result.onSuccess { onSaved() }
-                        .onFailure { submitting = false; error = it.message }
                 }
+                result.onSuccess { onSaved() }
+                    .onFailure { submitting = false; error = it.message }
             }
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !submitting) {
-                Text(stringResource(Res.string.common_cancel))
-            }
+        }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !submitting) {
+            Text(stringResource(Res.string.common_cancel))
         }
     }
 }
+
+private const val MIN_PHONE_DIGITS = 9
 
 @Composable
 fun EmployeeServiceEditScreen(

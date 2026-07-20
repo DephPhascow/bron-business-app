@@ -50,10 +50,10 @@ fun App() {
     var onAuthError: (() -> Unit)? by remember { mutableStateOf(null) }
     val requester = remember { AppDependencies.createRequester(prefs) { onAuthError?.invoke() } }
     val coordinator = remember {
-        AppCoordinator(prefs, AppDependencies.createAuthRepository(requester))
+        AppCoordinator(prefs, AppDependencies.createAuthRepository(requester, prefs))
     }
-    val businessWorkspaceRepository = remember { AppDependencies.createBusinessWorkspaceRepository(requester) }
-    val profileRepository = remember { AppDependencies.createProfileRepository(requester) }
+    val businessWorkspaceRepository = remember { AppDependencies.createBusinessWorkspaceRepository(requester, prefs) }
+    val profileRepository = remember { AppDependencies.createProfileRepository(requester, prefs) }
     val chatRepository = remember { AppDependencies.createChatRepository(requester, prefs) }
     val pushRepository = remember { AppDependencies.createPushRepository(requester) }
 

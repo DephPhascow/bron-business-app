@@ -1,7 +1,0 @@
-mutation CancelBooking($pk: Int!) {
-  cancelBooking(pk: $pk) {
-    pk
-    status
-    dateCancelled
-  }
-}

@@ -9,7 +9,6 @@ import com.dphascow.app.graphql.LogoutMutation
 import com.dphascow.app.graphql.MeForAuthQuery
 import com.dphascow.app.graphql.RequireCodeMutation
 import com.dphascow.app.graphql.VerifyCodeMutation
-import com.dphascow.app.graphql.VerifyEmployeeCodeMutation
 
 /**
  * Low-level GraphQL client for authentication operations.
@@ -19,32 +18,28 @@ import com.dphascow.app.graphql.VerifyEmployeeCodeMutation
  */
 class ApiAuthClient(
     private val requester: Requester,
+    /** Sent even on the login calls — the server binds the issued token to it. */
+    private val deviceId: String,
 ) {
     private val publicClient: ApolloClient = ApolloClient.Builder()
         .serverUrl(BuildKonfig.API_URL)
+        .addHttpHeader(DEVICE_ID_HEADER, deviceId)
         .build()
 
+    /** @throws RateLimitException when the code was requested too often (3 per 5 min). */
     suspend fun requireCode(
         phoneOrEmail: String,
     ): ApolloResponse<RequireCodeMutation.Data> =
         publicClient.mutation(RequireCodeMutation(phoneOrEmail = phoneOrEmail)).execute()
+            .also { it.failIfRateLimited() }
 
+    /** @throws RateLimitException when the code was checked too often (10 per 5 min). */
     suspend fun verifyCode(
         phoneOrEmail: String,
         code: String,
     ): ApolloResponse<VerifyCodeMutation.Data> =
         publicClient.mutation(VerifyCodeMutation(phoneOrEmail = phoneOrEmail, code = code)).execute()
-
-    /**
-     * Confirms an employee's phone during an invite. Uses the same server-side
-     * `verifyCode` but selects only the user id — the employee's tokens are never
-     * requested, so the manager's session is untouched.
-     */
-    suspend fun verifyEmployeeCode(
-        phoneOrEmail: String,
-        code: String,
-    ): ApolloResponse<VerifyEmployeeCodeMutation.Data> =
-        publicClient.mutation(VerifyEmployeeCodeMutation(phoneOrEmail = phoneOrEmail, code = code)).execute()
+            .also { it.failIfRateLimited() }
 
     suspend fun meForAuth(token: String): ApolloResponse<MeForAuthQuery.Data> =
         publicClient.query(MeForAuthQuery())

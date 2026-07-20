@@ -1,0 +1,10 @@
+mutation UpdateEmployeeRole(
+  $businessId: Int!
+  $employeeId: Int!
+  $role: EmployeeRoleEnum!
+  $lang: String!
+) {
+  updateEmployeeRole(businessId: $businessId, employeeId: $employeeId, role: $role) {
+    ...EmployeeFields
+  }
+}

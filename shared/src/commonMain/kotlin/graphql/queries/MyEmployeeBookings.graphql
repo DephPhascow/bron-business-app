@@ -1,0 +1,27 @@
+query MyEmployeeBookings(
+  $businessId: Int!
+  $dateFrom: Date
+  $dateTo: Date
+  $lang: String!
+) {
+  myEmployeeBookings(businessId: $businessId, dateFrom: $dateFrom, dateTo: $dateTo) {
+    pk
+    bookingDate
+    endDate
+    status
+    comments
+    userId
+    employeeId
+    user {
+      fullName
+      phone
+    }
+    services {
+      cost
+      service {
+        pk
+        name(lang: $lang)
+      }
+    }
+  }
+}

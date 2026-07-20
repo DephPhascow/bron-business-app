@@ -1,0 +1,8 @@
+mutation RescheduleBooking($bookingId: Int!, $date: DateTime!) {
+  rescheduleBooking(bookingId: $bookingId, date: $date) {
+    pk
+    bookingDate
+    endDate
+    status
+  }
+}

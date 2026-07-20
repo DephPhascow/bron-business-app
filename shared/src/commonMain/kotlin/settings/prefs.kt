@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalTime::class)
 private fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
@@ -57,6 +59,15 @@ class Prefs(
 
     private val _rememberedBusinessId = MutableStateFlow(s.getStringOrNull("rememberedBusinessId"))
     val rememberedBusinessIdFlow: StateFlow<String?> = _rememberedBusinessId
+
+    /**
+     * Generated on first access and kept forever — [clearAuthSession] deliberately
+     * leaves it alone, because the server ties tokens to this value.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    override val deviceId: String by lazy {
+        s.getStringOrNull("deviceId") ?: Uuid.random().toString().also { s.putString("deviceId", it) }
+    }
 
     override var accessToken: String?
         get() = _accessToken.value

@@ -2,38 +2,41 @@ package com.dphascow.app.business
 
 import com.apollographql.apollo.api.Optional
 import com.dphascow.app.expects.PickedPhoto
-import com.dphascow.app.graphql.AddEmployeesMutation
 import com.dphascow.app.graphql.AddGalleryImageMutation
 import com.dphascow.app.graphql.AddServiceToEmployeeMutation
+import com.dphascow.app.graphql.AnalyticsQuery
+import com.dphascow.app.graphql.BookClientForDateMutation
 import com.dphascow.app.graphql.BusinessWorkspaceQuery
-import com.dphascow.app.graphql.CancelBookingMutation
+import com.dphascow.app.graphql.CancelBookingBySalonMutation
 import com.dphascow.app.graphql.CategoriesQuery
+import com.dphascow.app.graphql.CompleteBookingMutation
 import com.dphascow.app.graphql.DeleteEmployeeMutation
 import com.dphascow.app.graphql.DeleteEmployeeServiceMutation
+import com.dphascow.app.graphql.DeleteGalleryImageMutation
+import com.dphascow.app.graphql.HireEmployeeMutation
+import com.dphascow.app.graphql.MarkBookingClientMissingMutation
+import com.dphascow.app.graphql.MyEmployeeBookingsQuery
+import com.dphascow.app.graphql.RescheduleBookingMutation
 import com.dphascow.app.graphql.SetEmployeeSpecializationsMutation
 import com.dphascow.app.graphql.SpecialisationsQuery
-import com.dphascow.app.graphql.UpdateBookingMutation
 import com.dphascow.app.graphql.UpdateBusinessMutation
+import com.dphascow.app.graphql.UpdateEmployeeRoleMutation
 import com.dphascow.app.graphql.UpdateEmployeeServiceMutation
-import com.dphascow.app.graphql.UpdateEmployeesMutation
+import com.dphascow.app.graphql.fragment.EmployeeFields
 import com.dphascow.app.graphql.fragment.ServiceFields
 import com.dphascow.app.graphql.fragment.WorkTimeFields
 import com.dphascow.app.graphql.type.AddServiceInput
 import com.dphascow.app.graphql.type.EmployeeRoleEnum
 import com.dphascow.app.graphql.type.FromToTimeInput
 import com.dphascow.app.graphql.type.ResultStatus
-import com.dphascow.app.graphql.type.UpdateBooking
 import com.dphascow.app.graphql.type.UpdateBusiness
-import com.dphascow.app.graphql.type.UpdateEmployee
 import com.dphascow.app.graphql.type.UpdateServiceInput
 import com.dphascow.app.graphql.type.WorkTimeInput
-import com.dphascow.app.repositories.ApiAuthClient
 import com.dphascow.app.repositories.FileUploader
 import com.dphascow.app.repositories.Requester
 
 class ApolloBusinessWorkspaceRepository(
     private val requester: Requester,
-    private val apiAuthClient: ApiAuthClient,
     private val fileUploader: FileUploader,
 ) : BusinessWorkspaceRepository {
     override suspend fun loadBusinessWorkspace(
@@ -59,22 +62,7 @@ class ApolloBusinessWorkspaceRepository(
             reviews = business.reviews.map { review ->
                 BusinessReview(mark = review.reviewMark, comment = review.comments)
             },
-            employees = business.employees.map { employee ->
-                BusinessEmployee(
-                    id = employee.pk.toString(),
-                    userId = employee.userId.toString(),
-                    name = employee.user.fullName,
-                    role = employee.role.toDomain(),
-                    specialisations = employee.specializations.map { spec ->
-                        Specialisation(id = spec.pk.toString(), name = specialisationName(spec.pk, spec.name))
-                    },
-                    services = employee.services.map { it.serviceFields.toDomain() },
-                    avatarUrl = employee.user.imageUrl,
-                    phone = employee.user.phone,
-                    email = employee.user.email,
-                    isActive = employee.isActive,
-                )
-            },
+            employees = business.employees.map { it.employeeFields.toDomain() },
             gallery = business.galleryImages.map { photo ->
                 BusinessGalleryPhoto(
                     id = photo.pk.toString(),
@@ -112,106 +100,58 @@ class ApolloBusinessWorkspaceRepository(
         }
     }
 
-    override suspend fun requireEmployeeCode(phone: String): Boolean {
-        val response = apiAuthClient.requireCode(phoneOrEmail = phone.trim())
-        return response.data?.requireCode ?: false
-    }
-
-    override suspend fun verifyEmployeePhone(phone: String, code: String): String {
-        // Dedicated mutation that only selects user.pk — the employee's tokens are
-        // never requested, so the manager's session stays intact.
-        val response = apiAuthClient.verifyEmployeeCode(phoneOrEmail = phone.trim(), code = code.trim())
-
-        val userPk = response.data?.verifyCode?.user?.pk
-            ?: throw IllegalArgumentException(response.errors?.firstOrNull()?.message ?: "Invalid code")
-
-        return userPk.toString()
-    }
-
-    override suspend fun addEmployee(
+    override suspend fun hireEmployee(
         businessId: String,
-        userId: String,
+        phone: String,
         role: EmployeeRole,
         specialisationIds: List<String>,
-        isActive: Boolean,
         lang: String,
     ): BusinessEmployee {
-        val input = UpdateEmployee(
-            businessId = Optional.present(businessId.toIntRequired("business id")),
-            userId = Optional.present(userId.toIntRequired("user id")),
-            role = Optional.present(role.toApi()),
-            isActive = Optional.present(isActive),
-        )
-
-        val response = requester.requestMutation(AddEmployeesMutation(input = input, lang = lang))
-        val employee = response.data?.addEmployees
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add employee response")
-
-        val specialisations = setSpecialisations(businessId, employee.pk.toString(), specialisationIds, lang)
-            ?: employee.specializations.map { Specialisation(it.pk.toString(), specialisationName(it.pk, it.name)) }
-
-        return BusinessEmployee(
-            id = employee.pk.toString(),
-            userId = employee.user.pk.toString(),
-            name = employee.user.fullName,
-            role = employee.role.toDomain(),
-            specialisations = specialisations,
-            services = employee.services.map { it.serviceFields.toDomain() },
-            avatarUrl = employee.user.imageUrl,
-            phone = employee.user.phone,
-            email = employee.user.email,
-            isActive = employee.isActive,
-        )
-    }
-
-    override suspend fun updateEmployee(
-        businessId: String,
-        employeeId: String,
-        role: EmployeeRole?,
-        specialisationIds: List<String>?,
-        isActive: Boolean?,
-        lang: String,
-    ): BusinessEmployee {
-        val input = UpdateEmployee(
-            role = Optional.presentIfNotNull(role?.toApi()),
-            isActive = Optional.presentIfNotNull(isActive),
-        )
-
+        // One round-trip: the server creates the user if the phone is unknown and
+        // assigns the specialisations in the same call.
         val response = requester.requestMutation(
-            UpdateEmployeesMutation(pk = employeeId.toIntRequired("employee id"), input = input, lang = lang)
+            HireEmployeeMutation(
+                businessId = businessId.toIntRequired("business id"),
+                phone = phone.trim(),
+                role = role.toApi(),
+                specializationIds = Optional.present(
+                    specialisationIds.map { it.toIntRequired("specialisation id") }
+                ),
+                lang = lang,
+            )
         )
-        val employee = response.data?.updateEmployees
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update employee response")
+        val employee = response.data?.hireEmployee
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty hire employee response")
 
-        val specialisations = setSpecialisations(businessId, employeeId, specialisationIds, lang)
-            ?: employee.specializations.map { Specialisation(it.pk.toString(), specialisationName(it.pk, it.name)) }
-
-        return BusinessEmployee(
-            id = employee.pk.toString(),
-            userId = employee.user.pk.toString(),
-            name = employee.user.fullName,
-            role = employee.role.toDomain(),
-            specialisations = specialisations,
-            services = employee.services.map { it.serviceFields.toDomain() },
-            avatarUrl = employee.user.imageUrl,
-            phone = employee.user.phone,
-            email = employee.user.email,
-            isActive = employee.isActive,
-        )
+        return employee.employeeFields.toDomain()
     }
 
-    /**
-     * Replaces the employee's specialisations with [specialisationIds] and returns the new list.
-     * Returns `null` when [specialisationIds] is `null`, i.e. the caller wants them left as-is.
-     */
-    private suspend fun setSpecialisations(
+    override suspend fun updateEmployeeRole(
         businessId: String,
         employeeId: String,
-        specialisationIds: List<String>?,
+        role: EmployeeRole,
         lang: String,
-    ): List<Specialisation>? {
-        if (specialisationIds == null) return null
+    ): BusinessEmployee {
+        val response = requester.requestMutation(
+            UpdateEmployeeRoleMutation(
+                businessId = businessId.toIntRequired("business id"),
+                employeeId = employeeId.toIntRequired("employee id"),
+                role = role.toApi(),
+                lang = lang,
+            )
+        )
+        val employee = response.data?.updateEmployeeRole
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update role response")
 
+        return employee.employeeFields.toDomain()
+    }
+
+    override suspend fun setEmployeeSpecialisations(
+        businessId: String,
+        employeeId: String,
+        specialisationIds: List<String>,
+        lang: String,
+    ): List<Specialisation> {
         val response = requester.requestMutation(
             SetEmployeeSpecializationsMutation(
                 businessId = businessId.toIntRequired("business id"),
@@ -328,23 +268,160 @@ class ApolloBusinessWorkspaceRepository(
         }
     }
 
-    override suspend fun cancelBooking(bookingId: String) {
+    override suspend fun completeBooking(businessId: String, bookingId: String) {
         val response = requester.requestMutation(
-            CancelBookingMutation(pk = bookingId.toIntRequired("booking id"))
+            CompleteBookingMutation(
+                businessId = businessId.toIntRequired("business id"),
+                bookingId = bookingId.toIntRequired("booking id"),
+            )
         )
-        if (response.data?.cancelBooking == null) {
+        if (response.data?.completeBooking == null) {
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty complete booking response")
+        }
+    }
+
+    override suspend fun markBookingClientMissing(businessId: String, bookingId: String) {
+        val response = requester.requestMutation(
+            MarkBookingClientMissingMutation(
+                businessId = businessId.toIntRequired("business id"),
+                bookingId = bookingId.toIntRequired("booking id"),
+            )
+        )
+        if (response.data?.markBookingClientMissing == null) {
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty no-show response")
+        }
+    }
+
+    override suspend fun cancelBookingBySalon(businessId: String, bookingId: String) {
+        val response = requester.requestMutation(
+            CancelBookingBySalonMutation(
+                businessId = businessId.toIntRequired("business id"),
+                bookingId = bookingId.toIntRequired("booking id"),
+            )
+        )
+        if (response.data?.cancelBookingBySalon == null) {
             throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty cancel booking response")
         }
     }
 
-    override suspend fun updateBookingStatus(bookingId: String, status: BookingStatus) {
-        val input = UpdateBooking(status = Optional.present(status.toApi()))
+    override suspend fun rescheduleBooking(bookingId: String, date: String) {
         val response = requester.requestMutation(
-            UpdateBookingMutation(pk = bookingId.toIntRequired("booking id"), input = input)
+            RescheduleBookingMutation(bookingId = bookingId.toIntRequired("booking id"), date = date)
         )
-        if (response.data?.updateBooking == null) {
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update booking response")
+        if (response.data?.rescheduleBooking == null) {
+            // The server explains why: busy specialist, closed salon, past time, cancelled booking.
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty reschedule response")
         }
+    }
+
+    override suspend fun bookClientForDate(
+        businessId: String,
+        employeeId: String,
+        serviceIds: List<String>,
+        date: String,
+        clientPhone: String,
+        clientName: String?,
+    ) {
+        val response = requester.requestMutation(
+            BookClientForDateMutation(
+                businessId = businessId.toIntRequired("business id"),
+                employeeId = employeeId.toIntRequired("employee id"),
+                serviceIds = serviceIds.map { it.toIntRequired("service id") },
+                date = date,
+                clientPhone = clientPhone.trim(),
+                clientName = Optional.presentIfNotNull(clientName?.trim()?.ifBlank { null }),
+            )
+        )
+        val result = response.data?.bookClientForDate
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty booking response")
+        // This one reports failures through the payload rather than GraphQL errors.
+        if (!result.status) throw IllegalStateException(result.message.ifBlank { "Could not create the booking" })
+    }
+
+    override suspend fun loadMyBookings(
+        businessId: String,
+        dateFrom: String?,
+        dateTo: String?,
+        lang: String,
+    ): List<EmployeeBooking> {
+        val response = requester.requestQuery(
+            MyEmployeeBookingsQuery(
+                businessId = businessId.toIntRequired("business id"),
+                dateFrom = Optional.presentIfNotNull(dateFrom),
+                dateTo = Optional.presentIfNotNull(dateTo),
+                lang = lang,
+            )
+        )
+        val list = response.data?.myEmployeeBookings
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty schedule response")
+
+        return list.map { booking ->
+            EmployeeBooking(
+                id = booking.pk.toString(),
+                clientName = booking.user.fullName,
+                clientPhone = booking.user.phone,
+                services = booking.services.map { s ->
+                    BusinessOrderService(
+                        name = s.service.name.orEmpty().ifBlank { "#${s.service.pk}" },
+                        cost = s.cost,
+                    )
+                },
+                startsAt = booking.bookingDate,
+                endsAt = booking.endDate,
+                status = booking.status.toDomain(),
+                comment = booking.comments,
+            )
+        }
+    }
+
+    override suspend fun loadAnalytics(
+        businessId: String,
+        employeeId: String?,
+        periodStart: String?,
+        periodEnd: String?,
+        lang: String,
+    ): BusinessAnalytics {
+        val response = requester.requestQuery(
+            AnalyticsQuery(
+                businessId = businessId.toIntRequired("business id"),
+                employeeId = Optional.presentIfNotNull(employeeId?.toIntOrNull()),
+                periodStart = Optional.presentIfNotNull(periodStart),
+                periodEnd = Optional.presentIfNotNull(periodEnd),
+                lang = lang,
+            )
+        )
+        val data = response.data?.analytics
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty analytics response")
+
+        return BusinessAnalytics(
+            periodStart = data.periodStart,
+            periodEnd = data.periodEnd,
+            revenue = data.revenue,
+            expectedRevenue = data.expectedRevenue,
+            bookingsCount = data.bookingsCount,
+            bookingsGrowthPercent = data.bookingsGrowthPercent,
+            revenueGrowthPercent = data.revenueGrowthPercent,
+            averageCheck = data.averageCheck,
+            cancelledCount = data.cancelledCount,
+            noShowCount = data.noShowCount,
+            employeesLoad = data.employeesLoad.map { load ->
+                EmployeeLoad(
+                    employeeId = load.employee.pk.toString(),
+                    employeeName = load.employee.user.fullName,
+                    loadPercent = load.loadPercent,
+                    bookedMinutes = load.bookedMinutes,
+                    availableMinutes = load.availableMinutes,
+                )
+            },
+            popularServices = data.popularServices.map { popular ->
+                PopularService(
+                    serviceId = popular.service.pk.toString(),
+                    name = popular.service.name.orEmpty().ifBlank { "#${popular.service.pk}" },
+                    bookingsCount = popular.bookingsCount,
+                    revenue = popular.revenue,
+                )
+            },
+        )
     }
 
     override suspend fun saveBusinessDetails(
@@ -381,6 +458,34 @@ class ApolloBusinessWorkspaceRepository(
             throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add gallery image response")
         }
     }
+
+    override suspend fun deleteGalleryPhoto(businessId: String, imageId: String) {
+        val response = requester.requestMutation(
+            DeleteGalleryImageMutation(
+                businessId = businessId.toIntRequired("business id"),
+                imageId = imageId.toIntRequired("image id"),
+            )
+        )
+        val result = response.data?.deleteGalleryImage
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty delete image response")
+        if (!result.status) throw IllegalStateException(result.message.ifBlank { "Could not delete the image" })
+    }
+
+    /** Maps the `EmployeeFields` GraphQL fragment into the domain [BusinessEmployee]. */
+    private fun EmployeeFields.toDomain(): BusinessEmployee = BusinessEmployee(
+        id = pk.toString(),
+        userId = userId.toString(),
+        name = user.fullName,
+        role = role.toDomain(),
+        specialisations = specializations.map { spec ->
+            Specialisation(id = spec.pk.toString(), name = specialisationName(spec.pk, spec.name))
+        },
+        services = services.map { it.serviceFields.toDomain() },
+        avatarUrl = user.imageUrl,
+        phone = user.phone,
+        email = user.email,
+        isActive = isActive,
+    )
 
     /** Maps the `ServiceFields` GraphQL fragment into the domain [BusinessService]. */
     private fun ServiceFields.toDomain(): BusinessService = BusinessService(
@@ -424,14 +529,6 @@ class ApolloBusinessWorkspaceRepository(
         ResultStatus.CANCELLED -> BookingStatus.CANCELLED
         ResultStatus.CLIENT_MISSING -> BookingStatus.CLIENT_MISSING
         ResultStatus.UNKNOWN__ -> BookingStatus.UNKNOWN
-    }
-
-    private fun BookingStatus.toApi(): ResultStatus = when (this) {
-        BookingStatus.WAITING -> ResultStatus.WAITING
-        BookingStatus.SUCCESS -> ResultStatus.SUCCESS
-        BookingStatus.CANCELLED -> ResultStatus.CANCELLED
-        BookingStatus.CLIENT_MISSING -> ResultStatus.CLIENT_MISSING
-        BookingStatus.UNKNOWN -> ResultStatus.WAITING
     }
 
     /** Maps the `WorkTimeFields` GraphQL fragment into the domain [WeeklySchedule]. */

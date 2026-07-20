@@ -36,6 +36,9 @@ enum class AuthError {
     CODE_SEND_FAILED,
     EMPTY_CODE,
     INVALID_CODE,
+
+    /** HTTP 429: 3 code requests and 10 verifications per 5 minutes. */
+    TOO_MANY_REQUESTS,
     UNKNOWN,
 }
 

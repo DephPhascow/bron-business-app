@@ -14,24 +14,7 @@ query BusinessWorkspace($businessId: Int!, $lang: String!) {
       comments
     }
     employees {
-      pk
-      role
-      isActive
-      userId
-      user {
-        pk
-        fullName
-        phone
-        email
-        imageUrl
-      }
-      specializations {
-        pk
-        name(lang: $lang)
-      }
-      services {
-        ...ServiceFields
-      }
+      ...EmployeeFields
     }
     galleryImages {
       pk

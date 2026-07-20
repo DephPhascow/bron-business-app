@@ -1,7 +1,0 @@
-mutation VerifyEmployeeCode($phoneOrEmail: String!, $code: String!) {
-  verifyCode(phoneOrEmail: $phoneOrEmail, code: $code) {
-    user {
-      pk
-    }
-  }
-}

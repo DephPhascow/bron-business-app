@@ -1,0 +1,6 @@
+mutation CompleteBooking($businessId: Int!, $bookingId: Int!) {
+  completeBooking(businessId: $businessId, bookingId: $bookingId) {
+    pk
+    status
+  }
+}

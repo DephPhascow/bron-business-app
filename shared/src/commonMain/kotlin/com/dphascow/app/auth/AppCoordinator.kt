@@ -1,6 +1,7 @@
 package com.dphascow.app.auth
 
 import com.dphascow.app.expects.PickedPhoto
+import com.dphascow.app.repositories.RateLimitException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -141,11 +142,11 @@ class AppCoordinator(
                     error = AuthError.CODE_SEND_FAILED,
                 )
             }
-        }.onFailure {
+        }.onFailure { failure ->
             _state.value = current.copy(
                 phone = phone,
                 isSubmitting = false,
-                error = AuthError.CODE_SEND_FAILED,
+                error = failure.toAuthError(AuthError.CODE_SEND_FAILED),
             )
         }
     }
@@ -156,6 +157,10 @@ class AppCoordinator(
         if (current.stage != AuthStage.CODE) return
         runCatching {
             authRepository.requireCode(phoneOrEmail = current.phone.trim())
+        }.onFailure { failure ->
+            // Resending is the easiest way to hit the 3-per-5-minutes limit, so the
+            // failure has to reach the screen — it drives the cooldown timer.
+            _state.value = current.copy(error = failure.toAuthError(AuthError.CODE_SEND_FAILED))
         }
     }
 
@@ -215,15 +220,19 @@ class AppCoordinator(
                     )
                 }
             }
-        }.onFailure {
+        }.onFailure { failure ->
             _state.value = current.copy(
                 phone = phone,
                 stage = AuthStage.CODE,
                 isSubmitting = false,
-                error = AuthError.INVALID_CODE,
+                error = failure.toAuthError(AuthError.INVALID_CODE),
             )
         }
     }
+
+    /** A rate limit is not a wrong code — it must not read as "invalid code". */
+    private fun Throwable.toAuthError(fallback: AuthError): AuthError =
+        if (this is RateLimitException) AuthError.TOO_MANY_REQUESTS else fallback
 
     suspend fun selectBusiness(businessId: String) {
         val current = _state.value as? AppUiState.BusinessSelection ?: return

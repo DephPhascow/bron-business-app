@@ -1,0 +1,46 @@
+query Analytics(
+  $businessId: Int!
+  $employeeId: Int
+  $periodStart: Date
+  $periodEnd: Date
+  $popularLimit: Int! = 5
+  $lang: String!
+) {
+  analytics(
+    businessId: $businessId
+    employeeId: $employeeId
+    periodStart: $periodStart
+    periodEnd: $periodEnd
+    popularLimit: $popularLimit
+  ) {
+    periodStart
+    periodEnd
+    revenue
+    expectedRevenue
+    bookingsCount
+    bookingsGrowthPercent
+    revenueGrowthPercent
+    averageCheck
+    cancelledCount
+    noShowCount
+    employeesLoad {
+      employee {
+        pk
+        user {
+          fullName
+        }
+      }
+      loadPercent
+      bookedMinutes
+      availableMinutes
+    }
+    popularServices {
+      service {
+        pk
+        name(lang: $lang)
+      }
+      bookingsCount
+      revenue
+    }
+  }
+}

@@ -20,6 +20,12 @@ sealed interface AppRoute {
     data object Orders : AppRoute
     data class OrderDetails(val orderId: String) : AppRoute
 
+    /** The signed-in specialist's own day, with the "came / no-show" buttons. */
+    data object MySchedule : AppRoute
+
+    /** Booking a walk-in or phone-in client on behalf of the salon. */
+    data object BookClient : AppRoute
+
     data object Analytics : AppRoute
     data object Reviews : AppRoute
     data object Account : AppRoute

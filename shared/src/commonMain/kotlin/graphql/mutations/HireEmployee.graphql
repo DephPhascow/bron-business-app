@@ -1,0 +1,16 @@
+mutation HireEmployee(
+  $businessId: Int!
+  $phone: String!
+  $role: EmployeeRoleEnum!
+  $specializationIds: [Int!]
+  $lang: String!
+) {
+  hireEmployee(
+    businessId: $businessId
+    phone: $phone
+    role: $role
+    specializationIds: $specializationIds
+  ) {
+    ...EmployeeFields
+  }
+}

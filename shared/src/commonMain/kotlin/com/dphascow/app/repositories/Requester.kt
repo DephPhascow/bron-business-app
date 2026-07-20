@@ -26,13 +26,18 @@ class Requester(
     private val onAuthenticateError: () -> Unit
 ) {
     private val logger = PlatformLogger("GRAPHQL")
-    private val tokenProvider = TokenProvider(authPref)
+
+    /** Shared so file uploads reuse the same token (and the same single-flight refresh). */
+    val tokenProvider = TokenProvider(authPref)
 
     private fun buildApollo(accessToken: String?): ApolloClient {
         logger.log(BuildKonfig.API_URL)
 
         var builder = ApolloClient.Builder()
             .serverUrl(BuildKonfig.API_URL)
+            // Tokens are bound to the device, not the IP — without this header every
+            // authenticated request is rejected.
+            .addHttpHeader(DEVICE_ID_HEADER, authPref.deviceId)
 
         if (accessToken != null) {
             builder = builder.addHttpHeader("Authorization", "Bearer $accessToken")
@@ -64,6 +69,7 @@ class Requester(
 
         return ApolloClient.Builder()
             .serverUrl(BuildKonfig.API_URL)
+            .addHttpHeader(DEVICE_ID_HEADER, authPref.deviceId)
             .subscriptionNetworkTransport(transport)
             .build()
     }
@@ -85,6 +91,10 @@ class Requester(
         var client = buildApollo(tokenProvider.accessToken())
         var response = call(client)
 
+        // 429 is a transport-level refusal, not an expired token — retrying with a
+        // fresh token would only burn another slot in the limit window.
+        response.failIfRateLimited()
+
         // Если токен умер → refresh → retry
         if (response.hasAuthError()) {
             val newToken = tokenProvider.accessToken(forceRefresh = true)
@@ -95,11 +105,17 @@ class Requester(
 
             client = buildApollo(newToken)
             response = call(client)
+            response.failIfRateLimited()
         }
 
         // Если второй раз 100 → logout
         if (response.hasAuthError()) {
             triggerAuthError()
+        } else {
+            // Arm the latch again: without this, the next expired session after a
+            // re-login would never reach the coordinator and the app would sit on a
+            // dead token instead of showing the sign-in screen.
+            authOnce.store(false)
         }
 
         return response

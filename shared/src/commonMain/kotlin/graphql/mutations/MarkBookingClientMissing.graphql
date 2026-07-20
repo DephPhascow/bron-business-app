@@ -1,0 +1,6 @@
+mutation MarkBookingClientMissing($businessId: Int!, $bookingId: Int!) {
+  markBookingClientMissing(businessId: $businessId, bookingId: $bookingId) {
+    pk
+    status
+  }
+}

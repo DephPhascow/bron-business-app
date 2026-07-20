@@ -34,6 +34,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import com.dphascow.app.auth.AppUiState
 import com.dphascow.app.business.BookingStatus
+import com.dphascow.app.business.BusinessAnalytics
 import com.dphascow.app.business.BusinessWorkspace
 import com.dphascow.app.business.DayInterval
 import com.dphascow.app.business.WeeklySchedule
@@ -199,9 +201,9 @@ fun DashboardScreen(
     onOpenEmployees: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenOrders: () -> Unit,
+    onOpenSchedule: () -> Unit,
     onOpenAnalytics: () -> Unit,
     onOpenReviews: () -> Unit,
-    onOpenChat: () -> Unit,
     onChangeBusinessClick: () -> Unit,
     onOpenMenu: () -> Unit,
 ) {
@@ -212,11 +214,12 @@ fun DashboardScreen(
         onMenu = onOpenMenu,
     ) {
         InfoCard(stringResource(Res.string.analytics_orders_title), stringResource(Res.string.dashboard_orders_subtitle), open, onOpenOrders)
+        InfoCard(stringResource(Res.string.schedule_title), stringResource(Res.string.dashboard_schedule_subtitle), open, onOpenSchedule)
         InfoCard(stringResource(Res.string.employees_title), stringResource(Res.string.dashboard_employees_subtitle), open, onOpenEmployees)
         InfoCard(stringResource(Res.string.gallery_title), stringResource(Res.string.dashboard_gallery_subtitle), open, onOpenGallery)
         InfoCard(stringResource(Res.string.analytics_title), stringResource(Res.string.dashboard_analytics_subtitle), open, onOpenAnalytics)
         InfoCard(stringResource(Res.string.reviews_title), stringResource(Res.string.dashboard_reviews_subtitle), open, onOpenReviews)
-        InfoCard(stringResource(Res.string.chat_title), stringResource(Res.string.dashboard_chat_subtitle), open, onOpenChat)
+        // Chat lives in the bottom bar — a card here would be a second door to the same room.
         InfoCard(stringResource(Res.string.business_settings_title), stringResource(Res.string.dashboard_business_settings_subtitle), open, onOpenBusinessSettings)
         if (state.canSwitchBusiness) {
             InfoCard(stringResource(Res.string.home_change_business), stringResource(Res.string.dashboard_change_business_subtitle), stringResource(Res.string.common_change), onChangeBusinessClick)
@@ -381,11 +384,19 @@ private fun Weekday.label(): String = stringResource(
 @Composable
 fun GalleryScreen(
     workspace: BusinessWorkspace?,
+    repository: BusinessWorkspaceRepository?,
     onBack: () -> Unit,
     onUploadClick: () -> Unit,
+    onChanged: () -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
+    var deletingId by remember { mutableStateOf<String?>(null) }
+    var confirmDeleteId by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+
     PageLayout(stringResource(Res.string.gallery_title), stringResource(Res.string.gallery_subtitle), onBack) {
         InfoCard(stringResource(Res.string.gallery_upload_title_card), stringResource(Res.string.gallery_upload_subtitle_card), stringResource(Res.string.common_upload), onUploadClick)
+        error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
         val gallery = workspace?.gallery.orEmpty()
         if (gallery.isEmpty()) {
             EmptyStateCard(stringResource(Res.string.gallery_empty))
@@ -396,12 +407,45 @@ fun GalleryScreen(
                 colors = CardDefaults.cardColors(containerColor = T.c.surface),
                 shape = RoundedCornerShape(T.d.lg),
             ) {
-                NetworkImage(
-                    url = photo.imageUrl,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).clip(RoundedCornerShape(T.d.lg)),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(T.d.sm)) {
+                    NetworkImage(
+                        url = photo.imageUrl,
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1.5f).clip(RoundedCornerShape(T.d.lg)),
+                    )
+                    OutlinedButton(
+                        onClick = { confirmDeleteId = photo.id },
+                        enabled = repository != null && deletingId == null,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = T.d.lg, vertical = T.d.sm),
+                    ) {
+                        if (deletingId == photo.id) {
+                            CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.primary)
+                        } else {
+                            Text(stringResource(Res.string.gallery_delete_action))
+                        }
+                    }
+                }
             }
         }
+    }
+
+    confirmDeleteId?.let { photoId ->
+        ConfirmDialog(
+            title = stringResource(Res.string.confirm_delete_photo),
+            confirmText = stringResource(Res.string.gallery_delete_action),
+            onConfirm = {
+                confirmDeleteId = null
+                val repo = repository ?: return@ConfirmDialog
+                val id = workspace?.id ?: return@ConfirmDialog
+                deletingId = photoId
+                error = null
+                scope.launch {
+                    runCatching { repo.deleteGalleryPhoto(id, photoId) }
+                        .onSuccess { deletingId = null; onChanged() }
+                        .onFailure { deletingId = null; error = it.message }
+                }
+            },
+            onDismiss = { confirmDeleteId = null },
+        )
     }
 }
 
@@ -469,9 +513,16 @@ fun OrdersScreen(
     workspace: BusinessWorkspace?,
     onBack: () -> Unit,
     onOrderClick: (String) -> Unit,
+    onBookClientClick: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     PageLayout(stringResource(Res.string.orders_title), stringResource(Res.string.orders_subtitle), onBack) {
+        InfoCard(
+            stringResource(Res.string.book_client_title),
+            stringResource(Res.string.book_client_subtitle),
+            stringResource(Res.string.common_add),
+            onBookClientClick,
+        )
         SearchField(query) { query = it }
         val orders = workspace?.orders.orEmpty()
             .sortedByDescending { it.dateTime }
@@ -504,6 +555,7 @@ internal fun BookingStatus.label(): String = when (this) {
 fun OrderDetailsScreen(
     workspace: BusinessWorkspace?,
     orderId: String,
+    businessId: String,
     repository: BusinessWorkspaceRepository?,
     chatRepository: com.dphascow.app.chat.ChatRepository?,
     onBack: () -> Unit,
@@ -514,6 +566,8 @@ fun OrderDetailsScreen(
     var busy by remember { mutableStateOf(false) }
     var messaging by remember { mutableStateOf(false) }
     var confirmCancel by remember { mutableStateOf(false) }
+    var rescheduling by remember { mutableStateOf(false) }
+    var newDate by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
     val apiOrder = workspace?.orders?.firstOrNull { it.id == orderId }
@@ -567,13 +621,35 @@ fun OrderDetailsScreen(
                 CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.primary)
             } else {
                 Button(
-                    onClick = { run { repository.updateBookingStatus(apiOrder.id, BookingStatus.SUCCESS) } },
+                    onClick = { run { repository.completeBooking(businessId, apiOrder.id) } },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(Res.string.order_mark_done)) }
                 OutlinedButton(
-                    onClick = { run { repository.updateBookingStatus(apiOrder.id, BookingStatus.CLIENT_MISSING) } },
+                    onClick = { run { repository.markBookingClientMissing(businessId, apiOrder.id) } },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(Res.string.order_mark_no_show)) }
+
+                if (rescheduling) {
+                    DateTimeField(
+                        label = stringResource(Res.string.order_reschedule_label),
+                        value = newDate,
+                        onValueChange = { newDate = it; error = null },
+                    )
+                    ActionRow(
+                        primaryText = stringResource(Res.string.order_reschedule_action),
+                        onPrimaryClick = {
+                            if (newDate.isNotBlank()) run { repository.rescheduleBooking(apiOrder.id, newDate) }
+                        },
+                        secondaryText = stringResource(Res.string.common_cancel),
+                        onSecondaryClick = { rescheduling = false; newDate = "" },
+                    )
+                } else {
+                    OutlinedButton(
+                        onClick = { rescheduling = true; newDate = apiOrder.dateTime },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(Res.string.order_reschedule_action)) }
+                }
+
                 OutlinedButton(
                     onClick = { confirmCancel = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -588,7 +664,7 @@ fun OrderDetailsScreen(
             confirmText = stringResource(Res.string.order_cancel_action),
             onConfirm = {
                 confirmCancel = false
-                run { repository.cancelBooking(apiOrder.id) }
+                run { repository.cancelBookingBySalon(businessId, apiOrder.id) }
             },
             onDismiss = { confirmCancel = false },
         )
@@ -596,15 +672,89 @@ fun OrderDetailsScreen(
 }
 
 @Composable
-fun AnalyticsScreen(onBack: () -> Unit) {
+fun AnalyticsScreen(
+    repository: BusinessWorkspaceRepository?,
+    businessId: String,
+    lang: String,
+    onBack: () -> Unit,
+) {
+    var analytics by remember(businessId) { mutableStateOf<BusinessAnalytics?>(null) }
+    var loading by remember(businessId) { mutableStateOf(true) }
+    var error by remember(businessId) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(repository, businessId, lang) {
+        loading = true
+        error = null
+        val repo = repository
+        if (repo == null) {
+            loading = false
+            return@LaunchedEffect
+        }
+        runCatching { repo.loadAnalytics(businessId = businessId, lang = lang) }
+            .onSuccess { analytics = it; loading = false }
+            .onFailure { error = it.message; loading = false }
+    }
+
     PageLayout(stringResource(Res.string.analytics_title), stringResource(Res.string.analytics_subtitle), onBack) {
-        InfoCard(stringResource(Res.string.analytics_revenue_title), stringResource(Res.string.analytics_revenue_value))
-        InfoCard(stringResource(Res.string.analytics_orders_title), stringResource(Res.string.analytics_orders_value))
-        InfoCard(stringResource(Res.string.analytics_average_bill_title), stringResource(Res.string.analytics_average_bill_value))
-        InfoCard(stringResource(Res.string.analytics_employee_load_title), stringResource(Res.string.analytics_employee_load_value))
-        InfoCard(stringResource(Res.string.analytics_popular_services_title), stringResource(Res.string.analytics_popular_services_value))
+        when {
+            loading -> Box(modifier = Modifier.fillMaxWidth().padding(T.d.lg), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = T.c.primary)
+            }
+
+            analytics == null -> EmptyStateCard(error ?: stringResource(Res.string.workspace_load_error))
+
+            else -> {
+                val data = analytics!!
+                InfoCard(
+                    stringResource(Res.string.analytics_period_title),
+                    "${data.periodStart} — ${data.periodEnd}",
+                )
+                InfoCard(
+                    stringResource(Res.string.analytics_revenue_title),
+                    listOfNotNull(
+                        data.revenue.toString(),
+                        data.revenueGrowthPercent.asGrowth(),
+                    ).joinToString(" · "),
+                )
+                InfoCard(stringResource(Res.string.analytics_expected_revenue_title), data.expectedRevenue.toString())
+                InfoCard(
+                    stringResource(Res.string.analytics_orders_title),
+                    listOfNotNull(
+                        data.bookingsCount.toString(),
+                        data.bookingsGrowthPercent.asGrowth(),
+                    ).joinToString(" · "),
+                )
+                InfoCard(stringResource(Res.string.analytics_average_bill_title), data.averageCheck.toString())
+                InfoCard(
+                    stringResource(Res.string.analytics_cancelled_title),
+                    "${data.cancelledCount} · ${data.noShowCount}",
+                )
+
+                Text(stringResource(Res.string.analytics_employee_load_title), color = T.c.dark7, style = T.t.t4SamiBold)
+                if (data.employeesLoad.isEmpty()) {
+                    EmptyStateCard(stringResource(Res.string.analytics_empty))
+                }
+                data.employeesLoad.forEach { load ->
+                    InfoCard(
+                        load.employeeName,
+                        "${load.loadPercent.oneDecimal()}% · ${load.bookedMinutes}/${load.availableMinutes}",
+                    )
+                }
+
+                Text(stringResource(Res.string.analytics_popular_services_title), color = T.c.dark7, style = T.t.t4SamiBold)
+                if (data.popularServices.isEmpty()) {
+                    EmptyStateCard(stringResource(Res.string.analytics_empty))
+                }
+                data.popularServices.forEach { service ->
+                    InfoCard(service.name, "${service.bookingsCount} · ${service.revenue}")
+                }
+            }
+        }
     }
 }
+
+/** Growth is `null` when there is no earlier period — the doc asks for a dash, not "0%". */
+private fun Double?.asGrowth(): String = if (this == null) "—" else "${if (this >= 0) "+" else ""}${oneDecimal()}%"
 
 @Composable
 fun ReviewsScreen(

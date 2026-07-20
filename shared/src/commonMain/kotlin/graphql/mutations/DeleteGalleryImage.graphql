@@ -1,0 +1,6 @@
+mutation DeleteGalleryImage($businessId: Int!, $imageId: Int!) {
+  deleteGalleryImage(businessId: $businessId, imageId: $imageId) {
+    status
+    message
+  }
+}

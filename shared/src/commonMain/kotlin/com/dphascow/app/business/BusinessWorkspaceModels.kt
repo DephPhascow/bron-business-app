@@ -118,6 +118,60 @@ data class BusinessOrderService(
     val cost: Int,
 )
 
+/** One booking on the signed-in specialist's own schedule (`myEmployeeBookings`). */
+data class EmployeeBooking(
+    val id: String,
+    val clientName: String,
+    val clientPhone: String?,
+    val services: List<BusinessOrderService>,
+    /** ISO date-time as returned by the API. */
+    val startsAt: String,
+    val endsAt: String,
+    val status: BookingStatus,
+    val comment: String?,
+)
+
+val EmployeeBooking.total: Int
+    get() = services.sumOf { it.cost }
+
+val EmployeeBooking.serviceSummary: String
+    get() = services.joinToString(", ") { it.name }.ifBlank { "—" }
+
+/**
+ * Salon analytics for a period. Only `SUCCESS` bookings count towards [revenue], so
+ * the numbers here depend on specialists marking visits as completed.
+ */
+data class BusinessAnalytics(
+    val periodStart: String,
+    val periodEnd: String,
+    val revenue: Int,
+    val expectedRevenue: Int,
+    val bookingsCount: Int,
+    /** `null` when there is no earlier period to compare against — show a dash, not 0%. */
+    val bookingsGrowthPercent: Double?,
+    val revenueGrowthPercent: Double?,
+    val averageCheck: Int,
+    val cancelledCount: Int,
+    val noShowCount: Int,
+    val employeesLoad: List<EmployeeLoad>,
+    val popularServices: List<PopularService>,
+)
+
+data class EmployeeLoad(
+    val employeeId: String,
+    val employeeName: String,
+    val loadPercent: Double,
+    val bookedMinutes: Int,
+    val availableMinutes: Int,
+)
+
+data class PopularService(
+    val serviceId: String,
+    val name: String,
+    val bookingsCount: Int,
+    val revenue: Int,
+)
+
 val BusinessOrder.total: Int
     get() = services.sumOf { it.cost }
 

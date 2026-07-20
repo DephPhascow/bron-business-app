@@ -1,0 +1,6 @@
+mutation CancelBookingBySalon($businessId: Int!, $bookingId: Int!) {
+  cancelBookingBySalon(businessId: $businessId, bookingId: $bookingId) {
+    pk
+    status
+  }
+}

@@ -54,6 +54,8 @@ fun MainShell(
     val scope = rememberCoroutineScope()
     var workspace by remember(state.business.id) { mutableStateOf<BusinessWorkspace?>(null) }
     var currentUserId by remember(profileRepository) { mutableStateOf<String?>(null) }
+    // Hiring goes by phone number, so "add myself" needs the signed-in user's phone.
+    var currentUserPhone by remember(profileRepository) { mutableStateOf<String?>(null) }
     var loading by remember(state.business.id) { mutableStateOf(true) }
     var loadError by remember(state.business.id) { mutableStateOf<String?>(null) }
     var reloadKey by remember(state.business.id) { mutableStateOf(0) }
@@ -79,9 +81,11 @@ fun MainShell(
     }
     val reload = { reloadKey++ }
 
-    // The signed-in user's pk — used e.g. to offer "add myself as an employee".
+    // The signed-in user — used e.g. to offer "add myself as an employee".
     LaunchedEffect(profileRepository) {
-        currentUserId = runCatching { profileRepository?.loadMe()?.id }.getOrNull()
+        val me = runCatching { profileRepository?.loadMe() }.getOrNull()
+        currentUserId = me?.id
+        currentUserPhone = me?.phone
     }
 
     val route = navigator.currentRoute
@@ -143,9 +147,9 @@ fun MainShell(
                 onOpenEmployees = { navigator.open(AppRoute.Employees) },
                 onOpenGallery = { navigator.open(AppRoute.Gallery) },
                 onOpenOrders = { navigator.open(AppRoute.Orders) },
+                onOpenSchedule = { navigator.open(AppRoute.MySchedule) },
                 onOpenAnalytics = { navigator.open(AppRoute.Analytics) },
                 onOpenReviews = { navigator.open(AppRoute.Reviews) },
-                onOpenChat = { navigator.open(AppRoute.Chats) },
                 onChangeBusinessClick = onChangeBusinessClick,
                 onOpenMenu = { scope.launch { drawerState.open() } },
             )
@@ -189,7 +193,7 @@ fun MainShell(
                 businessId = state.business.id,
                 lang = lang,
                 employee = route.employeeId?.let { id -> workspace?.employees?.firstOrNull { it.id == id } },
-                currentUserId = currentUserId,
+                currentUserPhone = currentUserPhone,
                 isCurrentUserEmployee = currentUserId != null &&
                     workspace?.employees?.any { it.userId == currentUserId } == true,
                 onBack = { navigator.back() },
@@ -217,8 +221,10 @@ fun MainShell(
 
             AppRoute.Gallery -> GalleryScreen(
                 workspace = workspace,
+                repository = businessWorkspaceRepository,
                 onBack = { navigator.back() },
                 onUploadClick = { navigator.open(AppRoute.GalleryUpload) },
+                onChanged = { reload() },
             )
 
             AppRoute.GalleryUpload -> GalleryUploadScreen(
@@ -235,11 +241,13 @@ fun MainShell(
                 workspace = workspace,
                 onBack = { navigator.back() },
                 onOrderClick = { navigator.open(AppRoute.OrderDetails(it)) },
+                onBookClientClick = { navigator.open(AppRoute.BookClient) },
             )
 
             is AppRoute.OrderDetails -> OrderDetailsScreen(
                 workspace = workspace,
                 orderId = route.orderId,
+                businessId = state.business.id,
                 repository = businessWorkspaceRepository,
                 chatRepository = chatRepository,
                 onBack = { navigator.back() },
@@ -250,7 +258,28 @@ fun MainShell(
                 onOpenConversation = { navigator.open(AppRoute.Conversation(it)) },
             )
 
+            AppRoute.BookClient -> BookClientScreen(
+                workspace = workspace,
+                repository = businessWorkspaceRepository,
+                businessId = state.business.id,
+                onBack = { navigator.back() },
+                onSaved = {
+                    reload()
+                    navigator.back()
+                },
+            )
+
+            AppRoute.MySchedule -> MyScheduleScreen(
+                repository = businessWorkspaceRepository,
+                businessId = state.business.id,
+                lang = lang,
+                onBack = { navigator.back() },
+            )
+
             AppRoute.Analytics -> AnalyticsScreen(
+                repository = businessWorkspaceRepository,
+                businessId = state.business.id,
+                lang = lang,
                 onBack = { navigator.back() },
             )
 
