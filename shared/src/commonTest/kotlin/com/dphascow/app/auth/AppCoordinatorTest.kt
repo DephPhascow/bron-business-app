@@ -108,6 +108,84 @@ class AppCoordinatorTest {
     }
 
     @Test
+    fun `enabling auto enter from settings remembers the open business`() = runTest {
+        val prefs = Prefs(FakeSettings())
+        val coordinator = AppCoordinator(
+            prefs = prefs,
+            authRepository = FakeAuthRepository(
+                businesses = listOf(
+                    BusinessOption(id = "first", name = "First", role = "Owner"),
+                    BusinessOption(id = "second", name = "Second", role = "Staff"),
+                )
+            )
+        )
+
+        coordinator.bootstrap()
+        coordinator.authenticate("998901112233")
+        coordinator.selectBusiness("second")
+
+        // The flag alone remembers nothing — the open business has to be recorded too,
+        // or the next sign-in would still ask.
+        coordinator.updateAutoEnterBusiness(true)
+        assertEquals("second", prefs.rememberedBusinessId)
+
+        coordinator.logout()
+        coordinator.bootstrap()
+        coordinator.authenticate("998901112233")
+
+        val state = assertIs<AppUiState.Authorized>(coordinator.state.value)
+        assertEquals("second", state.business.id)
+    }
+
+    @Test
+    fun `disabling auto enter makes the next login ask for a business`() = runTest {
+        val prefs = Prefs(FakeSettings())
+        val coordinator = AppCoordinator(
+            prefs = prefs,
+            authRepository = FakeAuthRepository(
+                businesses = listOf(
+                    BusinessOption(id = "first", name = "First", role = "Owner"),
+                    BusinessOption(id = "second", name = "Second", role = "Staff"),
+                )
+            )
+        )
+
+        coordinator.bootstrap()
+        coordinator.authenticate("998901112233")
+        coordinator.updateRememberChoice(true)
+        coordinator.selectBusiness("second")
+
+        coordinator.updateAutoEnterBusiness(false)
+        assertFalse(prefs.rememberBusinessSelection)
+        assertEquals(null, prefs.rememberedBusinessId)
+
+        coordinator.logout()
+        coordinator.bootstrap()
+        coordinator.authenticate("998901112233")
+
+        assertIs<AppUiState.BusinessSelection>(coordinator.state.value)
+    }
+
+    @Test
+    fun `auto enter of a single business is skipped when disabled`() = runTest {
+        val prefs = Prefs(FakeSettings())
+        val coordinator = AppCoordinator(
+            prefs = prefs,
+            authRepository = FakeAuthRepository(
+                businesses = listOf(
+                    BusinessOption(id = "solo", name = "Solo Studio", role = "Owner")
+                )
+            )
+        )
+
+        coordinator.updateAutoEnterBusiness(false)
+        coordinator.bootstrap()
+        coordinator.authenticate("998901112233")
+
+        assertIs<AppUiState.BusinessSelection>(coordinator.state.value)
+    }
+
+    @Test
     fun `create business opens newly created business`() = runTest {
         val prefs = Prefs(FakeSettings())
         val coordinator = AppCoordinator(

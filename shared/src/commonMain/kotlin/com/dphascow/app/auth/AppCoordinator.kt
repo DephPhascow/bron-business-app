@@ -70,6 +70,22 @@ class AppCoordinator(
         _state.value = current.copy(rememberChoice = enabled)
     }
 
+    /**
+     * The same preference as the "remember my choice" box on the business picker,
+     * toggled from settings while already inside a business.
+     *
+     * Turning it on has to record the business that is open right now: the flag on
+     * its own remembers nothing, so the next login would still ask.
+     */
+    fun updateAutoEnterBusiness(enabled: Boolean) {
+        prefs.rememberBusinessSelection = enabled
+        if (enabled) {
+            (_state.value as? AppUiState.Authorized)?.let { prefs.rememberedBusinessId = it.business.id }
+        } else {
+            prefs.clearRememberedBusiness()
+        }
+    }
+
     fun openCreateBusiness() {
         val current = _state.value as? AppUiState.BusinessSelection ?: return
         _state.value = AppUiState.BusinessCreation(

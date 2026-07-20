@@ -280,4 +280,6 @@
     <string name="common_next">Next</string>
     <string name="datetime_choose">Choose date and time</string>
     <string name="datetime_time_title">Time</string>
+    <string name="settings_auto_enter_business">Auto-open business</string>
+    <string name="settings_auto_enter_business_hint">Open the last business straight away. Turn off to be asked which one on every sign-in.</string>
 </resources>

@@ -279,4 +279,6 @@
     <string name="common_next">Keyingi</string>
     <string name="datetime_choose">Sana va vaqtni tanlang</string>
     <string name="datetime_time_title">Vaqt</string>
+    <string name="settings_auto_enter_business">Biznesga avtomatik kirish</string>
+    <string name="settings_auto_enter_business_hint">Oxirgi biznes darhol ochiladi. Belgini olib tashlasangiz, har kirishda qaysi biznes ochilishini so‘raymiz.</string>
 </resources>

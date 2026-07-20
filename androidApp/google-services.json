@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "142185022177",
+    "project_id": "bronik-68eea",
+    "storage_bucket": "bronik-68eea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:142185022177:android:5a5be8c0266a5248982da0",
+        "android_client_info": {
+          "package_name": "uz.vigoristechnology.admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqK05crA-9j2Amhg942h3IVYPmLYsm-zc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -23,6 +23,8 @@ fun main() = application {
                         ),
                         lang = "ru",
                         theme = ThemeMode.LIGHT,
+                        autoEnterBusiness = true,
+                        onAutoEnterBusinessChange = {},
                         businessWorkspaceRepository = null,
                         profileRepository = null,
                         chatRepository = null,

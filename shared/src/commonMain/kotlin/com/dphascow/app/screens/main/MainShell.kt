@@ -45,6 +45,8 @@ fun MainShell(
     state: AppUiState.Authorized,
     lang: String,
     theme: ThemeMode,
+    autoEnterBusiness: Boolean,
+    onAutoEnterBusinessChange: (Boolean) -> Unit,
     businessWorkspaceRepository: BusinessWorkspaceRepository?,
     profileRepository: ProfileRepository?,
     chatRepository: ChatRepository?,
@@ -301,6 +303,8 @@ fun MainShell(
             AppRoute.Settings -> SettingsScreen(
                 lang = lang,
                 theme = theme,
+                autoEnterBusiness = autoEnterBusiness,
+                onAutoEnterBusinessChange = onAutoEnterBusinessChange,
                 onLangChange = onLangChange,
                 onThemeChange = onThemeChange,
                 onBack = { navigator.back() },

@@ -1,5 +1,6 @@
 package com.dphascow.app.screens.main
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.outlined.DevicesOther
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
@@ -245,11 +247,35 @@ fun AccountScreen(
 fun SettingsScreen(
     lang: String,
     theme: ThemeMode,
+    autoEnterBusiness: Boolean,
+    onAutoEnterBusinessChange: (Boolean) -> Unit,
     onLangChange: (String) -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onBack: () -> Unit,
 ) {
     PageLayout(stringResource(Res.string.settings_title), stringResource(Res.string.settings_subtitle), onBack) {
+        // Mirrors the "remember my choice" box on the business picker: unchecking it
+        // makes the next sign-in ask which business to open.
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { onAutoEnterBusinessChange(!autoEnterBusiness) },
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(T.d.sm),
+        ) {
+            Checkbox(checked = autoEnterBusiness, onCheckedChange = onAutoEnterBusinessChange)
+            Column(verticalArrangement = Arrangement.spacedBy(T.d.xs)) {
+                Text(
+                    stringResource(Res.string.settings_auto_enter_business),
+                    color = T.c.dark10,
+                    style = T.t.t3SemiBold,
+                )
+                Text(
+                    stringResource(Res.string.settings_auto_enter_business_hint),
+                    color = T.c.dark5,
+                    style = T.t.t4,
+                )
+            }
+        }
+
         Text(stringResource(Res.string.account_language), color = T.c.dark5, style = T.t.t4SamiBold)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
             LANGUAGES.forEach { (code, title) ->

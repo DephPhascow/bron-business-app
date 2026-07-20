@@ -68,6 +68,9 @@ fun App() {
     LaunchedEffect(theme) { prefs.theme = theme }
 
     val state by coordinator.state.collectAsState()
+    // Backed by prefs so the settings checkbox and the picker's "remember" box are
+    // always showing the same value.
+    val autoEnterBusiness by prefs.rememberBusinessSelectionFlow.collectAsState()
 
     AppTheme(mode= theme) {
         Surface(
@@ -124,6 +127,8 @@ fun App() {
                         state = currentState,
                         lang = lang,
                         theme = theme,
+                        autoEnterBusiness = autoEnterBusiness,
+                        onAutoEnterBusinessChange = coordinator::updateAutoEnterBusiness,
                         businessWorkspaceRepository = businessWorkspaceRepository,
                         profileRepository = profileRepository,
                         chatRepository = chatRepository,

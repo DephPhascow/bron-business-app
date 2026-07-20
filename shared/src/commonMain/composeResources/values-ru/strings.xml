@@ -279,4 +279,6 @@
     <string name="common_next">Далее</string>
     <string name="datetime_choose">Выбрать дату и время</string>
     <string name="datetime_time_title">Время</string>
+    <string name="settings_auto_enter_business">Автовход в бизнес</string>
+    <string name="settings_auto_enter_business_hint">Сразу открывать последний бизнес. Снимите галочку — при каждом входе будем спрашивать, какой открыть.</string>
 </resources>
