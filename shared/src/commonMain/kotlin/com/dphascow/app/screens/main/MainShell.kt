@@ -3,6 +3,9 @@ package com.dphascow.app.screens.main
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Home
@@ -11,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
@@ -18,9 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
 import com.dphascow.app.auth.AppUiState
@@ -128,7 +132,8 @@ fun MainShell(
         },
     ) {
     Scaffold(
-        containerColor = T.c.background,
+        // Same surface the pages draw on, so no seam shows around the bottom bar.
+        containerColor = T.c.dark1,
         bottomBar = {
             // Only the two root tabs carry the bar; pushed pages show a back arrow instead.
             if (route == AppRoute.Dashboard || route == AppRoute.Chats) {
@@ -321,18 +326,29 @@ fun MainShell(
 /** Root-level tabs: the dashboard and chats. */
 @Composable
 private fun MainBottomBar(current: AppRoute, onSelect: (AppRoute) -> Unit) {
-    NavigationBar(containerColor = T.c.surface) {
+    // The client app's bar is a filled `graniteGreen7` strip with `dark1` icons and
+    // no selection pill.
+    val itemColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = T.c.dark1,
+        unselectedIconColor = T.c.dark1,
+        selectedTextColor = T.c.dark1,
+        unselectedTextColor = T.c.dark1,
+        indicatorColor = Color.Transparent,
+    )
+    NavigationBar(containerColor = T.c.graniteGreen7) {
         NavigationBarItem(
             selected = current == AppRoute.Dashboard,
             onClick = { onSelect(AppRoute.Dashboard) },
-            icon = { Icon(Icons.Outlined.Home, contentDescription = null) },
-            label = { Text(stringResource(Res.string.dashboard_title)) },
+            icon = { Icon(Icons.Outlined.Home, contentDescription = null, modifier = Modifier.size(26.dp)) },
+            label = { Text(stringResource(Res.string.dashboard_title), style = T.t.t5) },
+            colors = itemColors,
         )
         NavigationBarItem(
             selected = current == AppRoute.Chats,
             onClick = { onSelect(AppRoute.Chats) },
-            icon = { Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = null) },
-            label = { Text(stringResource(Res.string.chat_title)) },
+            icon = { Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = null, modifier = Modifier.size(26.dp)) },
+            label = { Text(stringResource(Res.string.chat_title), style = T.t.t5) },
+            colors = itemColors,
         )
     }
 }

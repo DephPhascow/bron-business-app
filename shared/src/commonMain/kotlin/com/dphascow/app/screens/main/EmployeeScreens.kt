@@ -6,27 +6,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +35,10 @@ import com.dphascow.app.business.SERVICE_NAME_LANGS
 import com.dphascow.app.business.ServiceCategory
 import com.dphascow.app.business.Specialisation
 import com.dphascow.app.business.specialisationSummary
+import com.dphascow.app.ui.AccentPanel
+import com.dphascow.app.ui.AppButton
+import com.dphascow.app.ui.AppOutlinedButton
+import com.dphascow.app.ui.AppTextField
 import com.dphascow.app.ui.NetworkImage
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
@@ -64,7 +61,7 @@ fun EmployeesScreen(
 ) {
     var query by remember { mutableStateOf("") }
     PageLayout(stringResource(Res.string.employees_title), stringResource(Res.string.employees_subtitle), onBack) {
-        InfoCard(
+        AccentPanel(
             stringResource(Res.string.employees_add_title),
             stringResource(Res.string.employees_add_subtitle),
             stringResource(Res.string.common_add),
@@ -103,7 +100,7 @@ fun EmployeeDetailsScreen(
 
     if (employee == null) {
         PageLayout(stringResource(Res.string.employee_title_fallback), null, onBack) {
-            Text(stringResource(Res.string.employee_not_found), color = T.c.dark7, style = T.t.t2Regular)
+            Text(stringResource(Res.string.employee_not_found), color = T.c.dark5, style = T.t.t2Regular)
         }
         return
     }
@@ -128,8 +125,8 @@ fun EmployeeDetailsScreen(
             onEditClick,
         )
 
-        Text(stringResource(Res.string.services_title), color = T.c.dark7, style = T.t.t4SamiBold)
-        InfoCard(
+        Text(stringResource(Res.string.services_title), color = T.c.dark5, style = T.t.t4SamiBold)
+        AccentPanel(
             stringResource(Res.string.employee_service_add_title),
             stringResource(Res.string.employee_service_add_subtitle),
             stringResource(Res.string.common_add),
@@ -148,9 +145,12 @@ fun EmployeeDetailsScreen(
 
         error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
-        Button(
+        AppButton(
+            text = stringResource(Res.string.employee_message_action),
+            loading = messaging,
+            enabled = !deleting && chatRepository != null,
             onClick = {
-                val chat = chatRepository ?: return@Button
+                val chat = chatRepository ?: return@AppButton
                 messaging = true
                 error = null
                 scope.launch {
@@ -159,35 +159,25 @@ fun EmployeeDetailsScreen(
                         .onFailure { messaging = false; error = it.message }
                 }
             },
-            enabled = !messaging && !deleting && chatRepository != null,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (messaging) {
-                CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.onPrimary)
-            } else {
-                Text(stringResource(Res.string.employee_message_action))
-            }
-        }
+        )
 
         if (employee.isActive) {
-            OutlinedButton(
+            AppOutlinedButton(
+                text = stringResource(Res.string.employee_delete_action),
+                loading = deleting,
+                enabled = repository != null,
                 onClick = { confirmDelete = true },
-                enabled = !deleting && repository != null,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (deleting) {
-                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.primary)
-                } else {
-                    Text(stringResource(Res.string.employee_delete_action))
-                }
-            }
+            )
         } else {
             // Dismissal only deactivates, and hiring the same phone again reinstates
             // the very same record instead of creating a duplicate.
-            OutlinedButton(
+            AppOutlinedButton(
+                text = stringResource(Res.string.employee_rehire_action),
+                loading = deleting,
+                enabled = repository != null && employee.phone != null,
                 onClick = {
-                    val repo = repository ?: return@OutlinedButton
-                    val phone = employee.phone ?: return@OutlinedButton
+                    val repo = repository ?: return@AppOutlinedButton
+                    val phone = employee.phone ?: return@AppOutlinedButton
                     deleting = true
                     error = null
                     scope.launch {
@@ -204,15 +194,7 @@ fun EmployeeDetailsScreen(
                             .onFailure { deleting = false; error = it.message }
                     }
                 },
-                enabled = !deleting && repository != null && employee.phone != null,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (deleting) {
-                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.primary)
-                } else {
-                    Text(stringResource(Res.string.employee_rehire_action))
-                }
-            }
+            )
         }
     }
 
@@ -279,26 +261,25 @@ fun EmployeeEditScreen(
             if (canAddSelf) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
                     Checkbox(checked = addSelf, onCheckedChange = { addSelf = it; error = null })
-                    Text(stringResource(Res.string.employee_add_self), color = T.c.onSurface, style = T.t.t3SemiBold)
+                    Text(stringResource(Res.string.employee_add_self), color = T.c.dark10, style = T.t.t3SemiBold)
                 }
             }
 
             if (addSelf) {
-                Text(stringResource(Res.string.employee_add_self_hint), color = T.c.dark7, style = T.t.t3)
+                Text(stringResource(Res.string.employee_add_self_hint), color = T.c.dark5, style = T.t.t3)
             } else {
-                Text(stringResource(Res.string.employee_hire_hint), color = T.c.dark7, style = T.t.t3)
-                OutlinedTextField(
+                Text(stringResource(Res.string.employee_hire_hint), color = T.c.dark5, style = T.t.t3)
+                AppTextField(
                     value = phone,
                     onValueChange = { phone = it; error = null },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.auth_phone_label)) },
-                    placeholder = { Text(stringResource(Res.string.auth_phone_placeholder)) },
-                    singleLine = true,
+                    label = stringResource(Res.string.auth_phone_label),
+                    placeholder = stringResource(Res.string.auth_phone_placeholder),
+                    enabled = !submitting,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 )
             }
         } else {
-            Text(employee!!.phone.orEmpty(), color = T.c.dark7, style = T.t.t3)
+            Text(employee!!.phone.orEmpty(), color = T.c.dark5, style = T.t.t3)
         }
 
         RoleSelector(role) { role = it }
@@ -350,9 +331,11 @@ fun EmployeeEditScreen(
                     .onFailure { submitting = false; error = it.message }
             }
         }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !submitting) {
-            Text(stringResource(Res.string.common_cancel))
-        }
+        AppOutlinedButton(
+            text = stringResource(Res.string.common_cancel),
+            onClick = onBack,
+            enabled = !submitting,
+        )
     }
 }
 
@@ -399,38 +382,35 @@ fun EmployeeServiceEditScreen(
 
     PageLayout(title, stringResource(Res.string.employee_service_edit_subtitle), onBack) {
         SERVICE_NAME_LANGS.forEach { code ->
-            OutlinedTextField(
+            AppTextField(
                 value = names[code].orEmpty(),
                 onValueChange = { names = names + (code to it); error = null },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(Res.string.employee_service_name_label, code.uppercase())) },
-                singleLine = true,
+                label = stringResource(Res.string.employee_service_name_label, code.uppercase()),
+                enabled = !submitting,
             )
         }
 
         CategorySelector(categories, categoryId) { categoryId = it }
 
-        OutlinedTextField(
+        AppTextField(
             value = cost,
             onValueChange = { raw -> cost = raw.filter(Char::isDigit); error = null },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(Res.string.service_price_title)) },
-            singleLine = true,
+            label = stringResource(Res.string.service_price_title),
+            enabled = !submitting,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         )
 
-        OutlinedTextField(
+        AppTextField(
             value = duration,
             onValueChange = { duration = it; error = null },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(Res.string.service_duration_title)) },
-            placeholder = { Text(DEFAULT_SERVICE_DURATION) },
-            singleLine = true,
+            label = stringResource(Res.string.service_duration_title),
+            placeholder = DEFAULT_SERVICE_DURATION,
+            enabled = !submitting,
         )
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
             Switch(checked = isActive, onCheckedChange = { isActive = it })
-            Text(stringResource(Res.string.employee_active_label), color = T.c.onSurface, style = T.t.t3SemiBold)
+            Text(stringResource(Res.string.employee_active_label), color = T.c.dark10, style = T.t.t3SemiBold)
         }
 
         error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
@@ -476,18 +456,18 @@ fun EmployeeServiceEditScreen(
         }
 
         if (!isAdd) {
-            OutlinedButton(
+            AppOutlinedButton(
+                text = stringResource(Res.string.employee_service_delete_action),
                 onClick = { confirmDelete = true },
                 enabled = !submitting && repository != null,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(Res.string.employee_service_delete_action))
-            }
+            )
         }
 
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !submitting) {
-            Text(stringResource(Res.string.common_cancel))
-        }
+        AppOutlinedButton(
+            text = stringResource(Res.string.common_cancel),
+            onClick = onBack,
+            enabled = !submitting,
+        )
     }
 
     if (confirmDelete) {
@@ -523,11 +503,9 @@ private fun CategorySelector(
     val selectedName = options.firstOrNull { it.id == selectedId }?.name
         ?: stringResource(Res.string.employee_service_category_select)
 
-    Text(stringResource(Res.string.employee_service_category_label), color = T.c.dark7, style = T.t.t4SamiBold)
+    Text(stringResource(Res.string.employee_service_category_label), color = T.c.dark5, style = T.t.t4SamiBold)
     Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(selectedName)
-        }
+        AppOutlinedButton(text = selectedName, onClick = { expanded = true })
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
                 DropdownMenuItem(
@@ -541,13 +519,13 @@ private fun CategorySelector(
 
 @Composable
 private fun RoleSelector(selected: EmployeeRole, onSelected: (EmployeeRole) -> Unit) {
-    Text(stringResource(Res.string.employee_role_label), color = T.c.dark7, style = T.t.t4SamiBold)
+    Text(stringResource(Res.string.employee_role_label), color = T.c.dark5, style = T.t.t4SamiBold)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(T.d.md)) {
         EmployeeRole.entries.forEach { option ->
             if (option == selected) {
-                Button(onClick = { onSelected(option) }, modifier = Modifier.weight(1f)) { Text(option.label()) }
+                AppButton(text = option.label(), onClick = { onSelected(option) }, modifier = Modifier.weight(1f))
             } else {
-                OutlinedButton(onClick = { onSelected(option) }, modifier = Modifier.weight(1f)) { Text(option.label()) }
+                AppOutlinedButton(text = option.label(), onClick = { onSelected(option) }, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -560,12 +538,12 @@ private fun SpecialisationSelector(
     selectedIds: Set<String>,
     onToggle: (String) -> Unit,
 ) {
-    Text(stringResource(Res.string.employee_specialisation_label), color = T.c.dark7, style = T.t.t4SamiBold)
+    Text(stringResource(Res.string.employee_specialisation_label), color = T.c.dark5, style = T.t.t4SamiBold)
     if (options.isEmpty()) {
-        Text(stringResource(Res.string.employee_specialisation_empty), color = T.c.dark7, style = T.t.t3)
+        Text(stringResource(Res.string.employee_specialisation_empty), color = T.c.dark5, style = T.t.t3)
         return
     }
-    Text(stringResource(Res.string.employee_specialisation_select), color = T.c.dark7, style = T.t.t3)
+    Text(stringResource(Res.string.employee_specialisation_select), color = T.c.dark5, style = T.t.t3)
     Column(modifier = Modifier.fillMaxWidth()) {
         options.forEach { option ->
             Row(
@@ -574,7 +552,7 @@ private fun SpecialisationSelector(
                 horizontalArrangement = Arrangement.spacedBy(T.d.sm),
             ) {
                 Checkbox(checked = option.id in selectedIds, onCheckedChange = { onToggle(option.id) })
-                Text(option.name, color = T.c.onSurface, style = T.t.t3)
+                Text(option.name, color = T.c.dark10, style = T.t.t3)
             }
         }
     }
@@ -587,11 +565,5 @@ private fun SubmitButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    Button(onClick = onClick, enabled = enabled && !loading, modifier = Modifier.fillMaxWidth()) {
-        if (loading) {
-            CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.onPrimary)
-        } else {
-            Text(text)
-        }
-    }
+    AppButton(text = text, onClick = onClick, enabled = enabled, loading = loading)
 }

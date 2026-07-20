@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -181,7 +182,7 @@ fun ConversationScreen(
             if (messages.isEmpty()) {
                 Text(
                     text = stringResource(Res.string.chat_conversation_empty),
-                    color = T.c.dark7,
+                    color = T.c.dark5,
                     style = T.t.t3,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(T.d.lg),
@@ -221,13 +222,20 @@ fun ConversationScreen(
             ) {
                 Text("📎")
             }
+            // The composer stays a compact inline row, so it keeps its own field
+            // rather than the full-width AppTextField — only the shape is matched.
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(stringResource(Res.string.chat_input_hint)) },
+                placeholder = { Text(stringResource(Res.string.chat_input_hint), color = T.c.dark5) },
                 enabled = !sending,
                 maxLines = 4,
+                shape = RoundedCornerShape(15.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = T.c.borderColor,
+                    unfocusedBorderColor = T.c.borderColor,
+                ),
             )
             Button(onClick = { sendText() }, enabled = !sending && input.isNotBlank()) {
                 Text(stringResource(Res.string.chat_send))
@@ -240,7 +248,7 @@ fun ConversationScreen(
 private fun MessageBubble(message: ChatMessage) {
     val alignment = if (message.isMine) Alignment.End else Alignment.Start
     val bubbleColor = if (message.isMine) T.c.primary else T.c.surface
-    val textColor = if (message.isMine) T.c.onPrimary else T.c.onSurface
+    val textColor = if (message.isMine) T.c.onPrimary else T.c.dark10
     val fileUrl = message.fileUrl
 
     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = alignment) {
@@ -254,7 +262,7 @@ private fun MessageBubble(message: ChatMessage) {
             verticalArrangement = Arrangement.spacedBy(T.d.xs),
         ) {
             if (!message.isMine) {
-                Text(message.authorName, color = T.c.dark7, style = T.t.t4SamiBold)
+                Text(message.authorName, color = T.c.dark5, style = T.t.t4SamiBold)
             }
             when (message.type) {
                 ChatMessageType.TEXT -> Text(message.text.orEmpty(), color = textColor, style = T.t.t2Regular)

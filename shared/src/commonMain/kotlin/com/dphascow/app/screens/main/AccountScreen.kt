@@ -41,6 +41,9 @@ import com.dphascow.app.expects.PickedPhoto
 import com.dphascow.app.expects.rememberPhotoPickerLauncher
 import com.dphascow.app.profile.MeProfile
 import com.dphascow.app.profile.ProfileRepository
+import com.dphascow.app.ui.AppButton
+import com.dphascow.app.ui.AppOutlinedButton
+import com.dphascow.app.ui.AppTextField
 import com.dphascow.app.ui.NetworkImage
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
@@ -71,7 +74,7 @@ fun AccountDrawer(
         ) {
             Text(
                 stringResource(Res.string.account_menu_title),
-                color = T.c.onBackground,
+                color = T.c.dark10,
                 style = T.t.headingH3,
                 modifier = Modifier.padding(T.d.sm),
             )
@@ -181,28 +184,39 @@ fun AccountScreen(
                     modifier = Modifier.size(96.dp).clip(CircleShape).align(Alignment.CenterHorizontally),
                 )
             }
-            OutlinedTextField(firstName, { firstName = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.account_first_name)) }, singleLine = true)
-            OutlinedTextField(lastName, { lastName = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.account_last_name)) }, singleLine = true)
-            OutlinedTextField(patronymic, { patronymic = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(Res.string.account_patronymic)) }, singleLine = true)
+            AppTextField(firstName, { firstName = it }, stringResource(Res.string.account_first_name), enabled = !saving)
+            AppTextField(lastName, { lastName = it }, stringResource(Res.string.account_last_name), enabled = !saving)
+            AppTextField(patronymic, { patronymic = it }, stringResource(Res.string.account_patronymic), enabled = !saving)
 
             profile?.phone?.let {
-                OutlinedTextField(it, {}, Modifier.fillMaxWidth(), enabled = false, label = { Text(stringResource(Res.string.business_settings_phone_label)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                AppTextField(
+                    value = it,
+                    onValueChange = {},
+                    label = stringResource(Res.string.business_settings_phone_label),
+                    enabled = false,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                )
             }
 
-            OutlinedButton(onClick = avatarPicker::launch, enabled = avatarPicker.isAvailable && !saving, modifier = Modifier.fillMaxWidth()) {
-                Text(avatar?.fileName ?: stringResource(Res.string.account_avatar_action))
-            }
+            AppOutlinedButton(
+                text = avatar?.fileName ?: stringResource(Res.string.account_avatar_action),
+                onClick = avatarPicker::launch,
+                enabled = avatarPicker.isAvailable && !saving,
+            )
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
                 Switch(checked = notifications, onCheckedChange = { notifications = it })
-                Text(stringResource(Res.string.account_notifications), color = T.c.onSurface, style = T.t.t3SemiBold)
+                Text(stringResource(Res.string.account_notifications), color = T.c.dark10, style = T.t.t3SemiBold)
             }
 
             error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
-            Button(
+            AppButton(
+                text = stringResource(Res.string.common_save),
+                loading = saving,
+                enabled = profileRepository != null,
                 onClick = {
-                    if (profileRepository == null) return@Button
+                    if (profileRepository == null) return@AppButton
                     saving = true
                     error = null
                     scope.launch {
@@ -221,15 +235,7 @@ fun AccountScreen(
                         }.onFailure { saving = false; error = it.message }
                     }
                 },
-                enabled = !saving && profileRepository != null,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (saving) {
-                    CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.onPrimary)
-                } else {
-                    Text(stringResource(Res.string.common_save))
-                }
-            }
+            )
         }
     }
 }
@@ -244,24 +250,24 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     PageLayout(stringResource(Res.string.settings_title), stringResource(Res.string.settings_subtitle), onBack) {
-        Text(stringResource(Res.string.account_language), color = T.c.dark7, style = T.t.t4SamiBold)
+        Text(stringResource(Res.string.account_language), color = T.c.dark5, style = T.t.t4SamiBold)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
             LANGUAGES.forEach { (code, title) ->
                 if (code == lang) {
-                    Button(onClick = { onLangChange(code) }, modifier = Modifier.weight(1f)) { Text(title) }
+                    AppButton(text = title, onClick = { onLangChange(code) }, modifier = Modifier.weight(1f))
                 } else {
-                    OutlinedButton(onClick = { onLangChange(code) }, modifier = Modifier.weight(1f)) { Text(title) }
+                    AppOutlinedButton(text = title, onClick = { onLangChange(code) }, modifier = Modifier.weight(1f))
                 }
             }
         }
 
-        Text(stringResource(Res.string.account_theme), color = T.c.dark7, style = T.t.t4SamiBold)
+        Text(stringResource(Res.string.account_theme), color = T.c.dark5, style = T.t.t4SamiBold)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
             ThemeMode.entries.forEach { mode ->
                 if (mode == theme) {
-                    Button(onClick = { onThemeChange(mode) }, modifier = Modifier.weight(1f)) { Text(mode.label()) }
+                    AppButton(text = mode.label(), onClick = { onThemeChange(mode) }, modifier = Modifier.weight(1f))
                 } else {
-                    OutlinedButton(onClick = { onThemeChange(mode) }, modifier = Modifier.weight(1f)) { Text(mode.label()) }
+                    AppOutlinedButton(text = mode.label(), onClick = { onThemeChange(mode) }, modifier = Modifier.weight(1f))
                 }
             }
         }

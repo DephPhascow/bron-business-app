@@ -20,22 +20,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Apartment
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -54,6 +49,9 @@ import com.dphascow.app.auth.AuthError
 import com.dphascow.app.auth.AuthStage
 import com.dphascow.app.auth.hasPhoto
 import com.dphascow.app.expects.rememberPhotoPickerLauncher
+import com.dphascow.app.ui.AppButton
+import com.dphascow.app.ui.AppOutlinedButton
+import com.dphascow.app.ui.AppTextField
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
 import kotlinx.coroutines.delay
@@ -121,66 +119,46 @@ private fun PhoneStage(
         Column(verticalArrangement = Arrangement.spacedBy(T.d.sm)) {
             Text(
                 text = stringResource(Res.string.auth_title),
-                color = T.c.onBackground,
+                color = T.c.dark10,
                 style = T.t.headingH3,
             )
             Text(
                 text = stringResource(Res.string.auth_subtitle),
-                color = T.c.dark7,
+                color = T.c.dark5,
                 style = T.t.t2Regular,
             )
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = T.c.surface),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(T.d.lg),
-                verticalArrangement = Arrangement.spacedBy(T.d.md),
-            ) {
-                OutlinedTextField(
-                    value = state.phone,
-                    onValueChange = onPhoneChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(Res.string.auth_phone_label)) },
-                    placeholder = { Text(text = stringResource(Res.string.auth_phone_placeholder)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Phone,
-                        imeAction = ImeAction.Done,
-                    ),
-                )
+        AppTextField(
+            value = state.phone,
+            onValueChange = onPhoneChanged,
+            label = stringResource(Res.string.auth_phone_label),
+            placeholder = stringResource(Res.string.auth_phone_placeholder),
+            enabled = !state.isSubmitting,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Phone,
+                imeAction = ImeAction.Done,
+            ),
+        )
 
-                state.error?.let { error ->
-                    Text(
-                        text = error.asText(),
-                        color = T.c.redError,
-                        style = T.t.t4SamiBold,
-                    )
-                }
-
-                Button(
-                    onClick = onGetCodeClick,
-                    enabled = !state.isSubmitting && cooldownLeft == 0,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (state.isSubmitting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(vertical = 2.dp),
-                            strokeWidth = 2.dp,
-                            color = T.c.onPrimary,
-                        )
-                    } else if (cooldownLeft > 0) {
-                        Text(text = stringResource(Res.string.auth_retry_in, formatCooldown(cooldownLeft)))
-                    } else {
-                        Text(text = stringResource(Res.string.auth_get_code_action))
-                    }
-                }
-            }
+        state.error?.let { error ->
+            Text(
+                text = error.asText(),
+                color = T.c.redError,
+                style = T.t.t4SamiBold,
+            )
         }
+
+        AppButton(
+            text = if (cooldownLeft > 0) {
+                stringResource(Res.string.auth_retry_in, formatCooldown(cooldownLeft))
+            } else {
+                stringResource(Res.string.auth_get_code_action)
+            },
+            loading = state.isSubmitting,
+            enabled = cooldownLeft == 0,
+            onClick = onGetCodeClick,
+        )
     }
 }
 
@@ -225,89 +203,75 @@ private fun CodeStage(
         Column(verticalArrangement = Arrangement.spacedBy(T.d.sm)) {
             Text(
                 text = stringResource(Res.string.auth_code_title),
-                color = T.c.onBackground,
+                color = T.c.dark10,
                 style = T.t.headingH3,
             )
             Text(
                 text = stringResource(Res.string.auth_code_subtitle, CODE_LENGTH, maskPhone(state.phone)),
-                color = T.c.dark7,
+                color = T.c.dark5,
                 style = T.t.t2Regular,
             )
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = T.c.surface),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(T.d.lg),
-                verticalArrangement = Arrangement.spacedBy(T.d.md),
+        CodeInput(
+            code = state.code,
+            enabled = !state.isSubmitting && !rateLimited,
+            onCodeChanged = onCodeChanged,
+        )
+
+        state.error?.let { error ->
+            Text(
+                text = error.asText(),
+                color = T.c.redError,
+                style = T.t.t4SamiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        if (state.isSubmitting) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
             ) {
-                CodeInput(
-                    code = state.code,
-                    enabled = !state.isSubmitting && !rateLimited,
-                    onCodeChanged = onCodeChanged,
+                CircularProgressIndicator(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    strokeWidth = 2.dp,
+                    color = T.c.primary,
                 )
-
-                state.error?.let { error ->
-                    Text(
-                        text = error.asText(),
-                        color = T.c.redError,
-                        style = T.t.t4SamiBold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-
-                if (state.isSubmitting) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(vertical = 2.dp),
-                            strokeWidth = 2.dp,
-                            color = T.c.primary,
-                        )
-                    }
-                }
-
-                if (secondsLeft > 0) {
-                    Text(
-                        text = if (rateLimited) {
-                            stringResource(Res.string.auth_retry_in, formatCooldown(secondsLeft))
-                        } else {
-                            stringResource(Res.string.auth_resend_in, secondsLeft)
-                        },
-                        color = T.c.dark7,
-                        style = T.t.t4,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                } else {
-                    TextButton(
-                        onClick = {
-                            onResendClick()
-                            secondsLeft = RESEND_SECONDS
-                        },
-                        enabled = !state.isSubmitting,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = stringResource(Res.string.auth_resend_code))
-                    }
-                }
-
-                OutlinedButton(
-                    onClick = onBackClick,
-                    enabled = !state.isSubmitting,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(Res.string.common_back))
-                }
             }
         }
+
+        if (secondsLeft > 0) {
+            Text(
+                text = if (rateLimited) {
+                    stringResource(Res.string.auth_retry_in, formatCooldown(secondsLeft))
+                } else {
+                    stringResource(Res.string.auth_resend_in, secondsLeft)
+                },
+                color = T.c.dark5,
+                style = T.t.t4,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            TextButton(
+                onClick = {
+                    onResendClick()
+                    secondsLeft = RESEND_SECONDS
+                },
+                enabled = !state.isSubmitting,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(text = stringResource(Res.string.auth_resend_code), color = T.c.dark10)
+            }
+        }
+
+        AppOutlinedButton(
+            text = stringResource(Res.string.common_back),
+            onClick = onBackClick,
+            enabled = !state.isSubmitting,
+        )
     }
 }
 
@@ -358,7 +322,7 @@ private fun CodeInput(
                     ) {
                         Text(
                             text = char.ifEmpty { " " },
-                            color = T.c.onBackground,
+                            color = T.c.dark10,
                             style = TextStyle(
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -415,12 +379,12 @@ fun BusinessSelectionScreen(
     ) {
         Text(
             text = stringResource(Res.string.business_selection_title),
-            color = T.c.onBackground,
+            color = T.c.dark10,
             style = T.t.headingH3,
         )
         Text(
             text = stringResource(Res.string.business_selection_subtitle),
-            color = T.c.dark7,
+            color = T.c.dark5,
             style = T.t.t2Regular,
         )
 
@@ -436,89 +400,69 @@ fun BusinessSelectionScreen(
             Column(verticalArrangement = Arrangement.spacedBy(T.d.xs)) {
                 Text(
                     text = stringResource(Res.string.business_remember_choice),
-                    color = T.c.onSurface,
+                    color = T.c.dark10,
                     style = T.t.t3SemiBold,
                 )
                 Text(
                     text = stringResource(Res.string.business_remember_choice_hint),
-                    color = T.c.dark7,
+                    color = T.c.dark5,
                     style = T.t.t4,
                 )
             }
         }
 
         if (state.businesses.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = T.c.surface),
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = T.d.md),
+                verticalArrangement = Arrangement.spacedBy(T.d.sm),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(T.d.lg),
-                    verticalArrangement = Arrangement.spacedBy(T.d.sm),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.business_empty_title),
-                        color = T.c.onSurface,
-                        style = T.t.t2Bold,
-                    )
-                    Text(
-                        text = stringResource(Res.string.business_empty_subtitle),
-                        color = T.c.dark7,
-                        style = T.t.t2Regular,
-                    )
-                }
+                Text(
+                    text = stringResource(Res.string.business_empty_title),
+                    color = T.c.dark10,
+                    style = T.t.t2,
+                )
+                Text(
+                    text = stringResource(Res.string.business_empty_subtitle),
+                    color = T.c.dark5,
+                    style = T.t.t4,
+                )
             }
         }
 
         state.businesses.forEach { business ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = T.c.surface),
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = T.d.md),
+                verticalArrangement = Arrangement.spacedBy(T.d.sm),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(T.d.lg),
-                    verticalArrangement = Arrangement.spacedBy(T.d.md),
-                ) {
-                    Text(
-                        text = business.name,
-                        color = T.c.onSurface,
-                        style = T.t.t2Bold,
-                    )
-                    Text(
-                        text = business.role,
-                        color = T.c.dark7,
-                        style = T.t.t2Regular,
-                    )
-                    Button(
-                        onClick = { onBusinessClick(business.id) },
-                        enabled = !state.isSelecting,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = stringResource(Res.string.business_select_action))
-                    }
-                }
+                Text(
+                    text = business.name,
+                    color = T.c.dark10,
+                    style = T.t.t2,
+                )
+                Text(
+                    text = business.role,
+                    color = T.c.dark5,
+                    style = T.t.t4,
+                )
+                AppButton(
+                    text = stringResource(Res.string.business_select_action),
+                    onClick = { onBusinessClick(business.id) },
+                    enabled = !state.isSelecting,
+                )
             }
         }
 
-        OutlinedButton(
+        AppOutlinedButton(
+            text = stringResource(Res.string.business_create_action),
             onClick = onCreateBusinessClick,
             enabled = !state.isSelecting,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(text = stringResource(Res.string.business_create_action))
-        }
+        )
 
-        Button(
+        AppButton(
+            text = stringResource(Res.string.home_logout),
             onClick = onLogoutClick,
             enabled = !state.isSelecting,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(text = stringResource(Res.string.home_logout))
-        }
+        )
     }
 }
 
@@ -541,97 +485,69 @@ fun BusinessCreationScreen(
     ) {
         Text(
             text = stringResource(Res.string.business_create_title),
-            color = T.c.onBackground,
+            color = T.c.dark10,
             style = T.t.headingH3,
         )
         Text(
             text = stringResource(Res.string.business_create_subtitle),
-            color = T.c.dark7,
+            color = T.c.dark5,
             style = T.t.t2Regular,
         )
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = T.c.surface),
-            shape = RoundedCornerShape(T.d.lg),
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.6f)
+                .clip(RoundedCornerShape(20.dp))
+                .background(if (state.draft.hasPhoto) T.c.graniteGreen7 else T.c.dark3),
+            contentAlignment = Alignment.Center,
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(T.d.lg),
-                verticalArrangement = Arrangement.spacedBy(T.d.md),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(T.d.sm),
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1.6f)
-                        .clip(RoundedCornerShape(T.d.lg))
-                        .background(if (state.draft.hasPhoto) T.c.graniteGreen7 else T.c.dark3),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(T.d.sm),
-                    ) {
-                        Icon(
-                            imageVector = if (state.draft.hasPhoto) Icons.Outlined.Apartment else Icons.Outlined.AddAPhoto,
-                            contentDescription = null,
-                            tint = T.c.dark1,
-                        )
-                        Text(
-                            text = state.draft.photo?.fileName ?: stringResource(
-                                if (state.draft.hasPhoto) {
-                                    Res.string.business_create_photo_added
-                                } else {
-                                    Res.string.business_create_photo_empty
-                                }
-                            ),
-                            color = T.c.dark1,
-                            style = T.t.t3SemiBold,
-                        )
-                    }
-                }
-
-                OutlinedButton(
-                    onClick = photoPicker::launch,
-                    enabled = !state.isSubmitting && photoPicker.isAvailable,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(Res.string.business_create_photo_action))
-                }
-
-                OutlinedTextField(
-                    value = state.draft.name,
-                    onValueChange = onNameChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = stringResource(Res.string.business_create_name_label)) },
-                    singleLine = true,
+                Icon(
+                    imageVector = if (state.draft.hasPhoto) Icons.Outlined.Apartment else Icons.Outlined.AddAPhoto,
+                    contentDescription = null,
+                    tint = T.c.dark1,
                 )
-
-                Button(
-                    onClick = onCreateClick,
-                    enabled = !state.isSubmitting,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (state.isSubmitting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(vertical = 2.dp),
-                            strokeWidth = 2.dp,
-                            color = T.c.onPrimary,
-                        )
-                    } else {
-                        Text(text = stringResource(Res.string.business_create_submit_action))
-                    }
-                }
-
-                OutlinedButton(
-                    onClick = onCancelClick,
-                    enabled = !state.isSubmitting,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(Res.string.common_cancel))
-                }
+                Text(
+                    text = state.draft.photo?.fileName ?: stringResource(
+                        if (state.draft.hasPhoto) {
+                            Res.string.business_create_photo_added
+                        } else {
+                            Res.string.business_create_photo_empty
+                        }
+                    ),
+                    color = T.c.dark1,
+                    style = T.t.t3SemiBold,
+                )
             }
         }
+
+        AppOutlinedButton(
+            text = stringResource(Res.string.business_create_photo_action),
+            onClick = photoPicker::launch,
+            enabled = !state.isSubmitting && photoPicker.isAvailable,
+        )
+
+        AppTextField(
+            value = state.draft.name,
+            onValueChange = onNameChanged,
+            label = stringResource(Res.string.business_create_name_label),
+            enabled = !state.isSubmitting,
+        )
+
+        AppButton(
+            text = stringResource(Res.string.business_create_submit_action),
+            onClick = onCreateClick,
+            loading = state.isSubmitting,
+        )
+
+        AppOutlinedButton(
+            text = stringResource(Res.string.common_cancel),
+            onClick = onCancelClick,
+            enabled = !state.isSubmitting,
+        )
     }
 }

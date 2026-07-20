@@ -6,32 +6,28 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.dphascow.app.business.BookingStatus
 import com.dphascow.app.business.BusinessWorkspace
 import com.dphascow.app.business.BusinessWorkspaceRepository
 import com.dphascow.app.business.EmployeeBooking
 import com.dphascow.app.business.serviceSummary
 import com.dphascow.app.business.total
+import com.dphascow.app.ui.AppButton
+import com.dphascow.app.ui.AppOutlinedButton
+import com.dphascow.app.ui.AppTextField
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
 import kotlinx.coroutines.launch
@@ -94,57 +90,46 @@ fun MyScheduleScreen(
         }
 
         bookings.forEach { booking ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = T.c.surface),
-                shape = RoundedCornerShape(T.d.lg),
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = T.d.md),
+                verticalArrangement = Arrangement.spacedBy(T.d.sm),
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(T.d.lg),
-                    verticalArrangement = Arrangement.spacedBy(T.d.sm),
-                ) {
-                    Text("${booking.startsAt} — ${booking.endsAt}", color = T.c.onSurface, style = T.t.t2Bold)
-                    Text(
-                        listOfNotNull(booking.clientName, booking.clientPhone).joinToString(" · "),
-                        color = T.c.dark7,
-                        style = T.t.t2Regular,
-                    )
-                    Text(
-                        "${booking.serviceSummary} · ${booking.total} · ${booking.status.label()}",
-                        color = T.c.dark7,
-                        style = T.t.t3,
-                    )
-                    booking.comment?.takeIf { it.isNotBlank() }?.let {
-                        Text(it, color = T.c.dark7, style = T.t.t4)
-                    }
+                Text("${booking.startsAt} — ${booking.endsAt}", color = T.c.dark10, style = T.t.t2)
+                Text(
+                    listOfNotNull(booking.clientName, booking.clientPhone).joinToString(" · "),
+                    color = T.c.dark5,
+                    style = T.t.t4,
+                )
+                Text(
+                    "${booking.serviceSummary} · ${booking.total} · ${booking.status.label()}",
+                    color = T.c.dark5,
+                    style = T.t.t4,
+                )
+                booking.comment?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = T.c.dark5, style = T.t.t4)
+                }
 
-                    // Only a booking still waiting can be closed out.
-                    if (booking.status == BookingStatus.WAITING && repository != null) {
-                        if (busyId == booking.id) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.padding(vertical = 2.dp),
-                                strokeWidth = 2.dp,
-                                color = T.c.primary,
-                            )
-                        } else {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(T.d.md),
-                            ) {
-                                Button(
-                                    onClick = { mark(booking.id) { repository.completeBooking(businessId, booking.id) } },
-                                    enabled = busyId == null,
-                                    modifier = Modifier.weight(1f),
-                                ) { Text(stringResource(Res.string.schedule_client_came)) }
-                                OutlinedButton(
-                                    onClick = {
-                                        mark(booking.id) { repository.markBookingClientMissing(businessId, booking.id) }
-                                    },
-                                    enabled = busyId == null,
-                                    modifier = Modifier.weight(1f),
-                                ) { Text(stringResource(Res.string.schedule_client_missing)) }
-                            }
-                        }
+                // Only a booking still waiting can be closed out.
+                if (booking.status == BookingStatus.WAITING && repository != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(T.d.md),
+                    ) {
+                        AppButton(
+                            text = stringResource(Res.string.schedule_client_came),
+                            onClick = { mark(booking.id) { repository.completeBooking(businessId, booking.id) } },
+                            enabled = busyId == null,
+                            loading = busyId == booking.id,
+                            modifier = Modifier.weight(1f),
+                        )
+                        AppOutlinedButton(
+                            text = stringResource(Res.string.schedule_client_missing),
+                            onClick = {
+                                mark(booking.id) { repository.markBookingClientMissing(businessId, booking.id) }
+                            },
+                            enabled = busyId == null,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
@@ -176,7 +161,7 @@ fun BookClientScreen(
     val services = selectedEmployee?.services.orEmpty().filter { it.isActive }
 
     PageLayout(stringResource(Res.string.book_client_title), stringResource(Res.string.book_client_subtitle), onBack) {
-        Text(stringResource(Res.string.book_client_employee_label), color = T.c.dark7, style = T.t.t4SamiBold)
+        Text(stringResource(Res.string.book_client_employee_label), color = T.c.dark5, style = T.t.t4SamiBold)
         employees.forEach { employee ->
             InfoCard(
                 title = employee.name,
@@ -191,7 +176,7 @@ fun BookClientScreen(
         }
 
         if (selectedEmployee != null) {
-            Text(stringResource(Res.string.book_client_services_label), color = T.c.dark7, style = T.t.t4SamiBold)
+            Text(stringResource(Res.string.book_client_services_label), color = T.c.dark5, style = T.t.t4SamiBold)
             if (services.isEmpty()) {
                 EmptyStateCard(stringResource(Res.string.services_empty))
             }
@@ -218,29 +203,31 @@ fun BookClientScreen(
             enabled = !submitting,
             onValueChange = { date = it; error = null },
         )
-        OutlinedTextField(
+        AppTextField(
             value = clientPhone,
             onValueChange = { clientPhone = it; error = null },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(Res.string.auth_phone_label)) },
-            placeholder = { Text(stringResource(Res.string.auth_phone_placeholder)) },
-            singleLine = true,
+            label = stringResource(Res.string.auth_phone_label),
+            placeholder = stringResource(Res.string.auth_phone_placeholder),
+            enabled = !submitting,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
         )
-        OutlinedTextField(
+        AppTextField(
             value = clientName,
             onValueChange = { clientName = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(Res.string.book_client_name_label)) },
-            singleLine = true,
+            label = stringResource(Res.string.book_client_name_label),
+            enabled = !submitting,
         )
 
         error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
-        Button(
+        AppButton(
+            text = stringResource(Res.string.book_client_submit),
+            loading = submitting,
+            enabled = repository != null && employeeId != null && serviceIds.isNotEmpty() &&
+                date.isNotBlank() && clientPhone.count { it.isDigit() } >= 9,
             onClick = {
-                val repo = repository ?: return@Button
-                val employee = employeeId ?: return@Button
+                val repo = repository ?: return@AppButton
+                val employee = employeeId ?: return@AppButton
                 submitting = true
                 error = null
                 scope.launch {
@@ -258,15 +245,6 @@ fun BookClientScreen(
                         .onFailure { submitting = false; error = it.message }
                 }
             },
-            enabled = !submitting && repository != null && employeeId != null && serviceIds.isNotEmpty() &&
-                date.isNotBlank() && clientPhone.count { it.isDigit() } >= 9,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (submitting) {
-                CircularProgressIndicator(modifier = Modifier.padding(vertical = 2.dp), strokeWidth = 2.dp, color = T.c.onPrimary)
-            } else {
-                Text(stringResource(Res.string.book_client_submit))
-            }
-        }
+        )
     }
 }
