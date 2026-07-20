@@ -2,9 +2,19 @@ package com.dphascow.app.repositories
 
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.exception.ApolloHttpException
+import com.dphascow.BuildKonfig
 
 /** Header the backend uses to bind a token to one installation. */
 const val DEVICE_ID_HEADER = "X-Device-Id"
+
+/**
+ * The server binds every access token to `sha256("<device-id>:<user-agent>:<user-id>")`,
+ * so a request whose User-Agent differs from the one the token was issued under is
+ * rejected as unauthenticated. We talk to the API over two stacks — Apollo for
+ * GraphQL and Ktor for file uploads — which default to different agent strings, so
+ * both must send this fixed value instead.
+ */
+val USER_AGENT = "BronBusinessApp/${BuildKonfig.APP_VERSION}"
 
 /**
  * The server rate-limits `requireCode`, `verifyCode`, `tokenAuth` and `refreshToken`;

@@ -38,6 +38,8 @@ class Requester(
             // Tokens are bound to the device, not the IP — without this header every
             // authenticated request is rejected.
             .addHttpHeader(DEVICE_ID_HEADER, authPref.deviceId)
+            // Part of the token fingerprint; must match what the uploader sends.
+            .addHttpHeader("User-Agent", USER_AGENT)
 
         if (accessToken != null) {
             builder = builder.addHttpHeader("Authorization", "Bearer $accessToken")
@@ -70,6 +72,7 @@ class Requester(
         return ApolloClient.Builder()
             .serverUrl(BuildKonfig.API_URL)
             .addHttpHeader(DEVICE_ID_HEADER, authPref.deviceId)
+            .addHttpHeader("User-Agent", USER_AGENT)
             .subscriptionNetworkTransport(transport)
             .build()
     }

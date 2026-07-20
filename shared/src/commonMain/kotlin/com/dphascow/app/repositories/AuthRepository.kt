@@ -24,6 +24,9 @@ class ApiAuthClient(
     private val publicClient: ApolloClient = ApolloClient.Builder()
         .serverUrl(BuildKonfig.API_URL)
         .addHttpHeader(DEVICE_ID_HEADER, deviceId)
+        // The login response's token is fingerprinted with this exact agent string,
+        // so every later request has to send the same one.
+        .addHttpHeader("User-Agent", USER_AGENT)
         .build()
 
     /** @throws RateLimitException when the code was requested too often (3 per 5 min). */

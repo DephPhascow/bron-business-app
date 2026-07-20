@@ -7,10 +7,14 @@ plugins {
 }
 
 android {
+    // Compile-time package for R/BuildConfig only — deliberately left alone so the
+    // manifest's relative `.MainActivity` keeps resolving. The app's public identity
+    // is `applicationId` below.
     namespace = "com.dphascow.app.android"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.dphascow.app.android"
+        // Identifies the app in Google Play and Firebase. Cannot be changed once published.
+        applicationId = "uz.vigoristechnology.admin"
         minSdk = 29
         targetSdk = 35
         versionCode = 1

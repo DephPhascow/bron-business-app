@@ -5,6 +5,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.header
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
@@ -39,26 +40,14 @@ class FileUploader(
             throw FileUploadException("File is larger than ${MAX_UPLOAD_BYTES / 1_000_000} MB")
         }
 
-        val token = tokenProvider.accessToken()
-            ?: throw IllegalStateException("Not authenticated")
-
         val client = HttpClient()
         try {
-            val response = client.submitFormWithBinaryData(
-                url = "${BuildKonfig.API_API}/files/upload",
-                formData = formData {
-                    append(
-                        key = "file",
-                        value = bytes,
-                        headers = Headers.build {
-                            append(HttpHeaders.ContentDisposition, "filename=\"${fileName ?: "photo.jpg"}\"")
-                            append(HttpHeaders.ContentType, mimeType ?: "application/octet-stream")
-                        },
-                    )
-                },
-            ) {
-                header(HttpHeaders.Authorization, "Bearer $token")
-                header(DEVICE_ID_HEADER, deviceId)
+            var response = client.post(bytes, fileName, mimeType, requireToken(forceRefresh = false))
+            // Access tokens live 5 minutes. GraphQL calls refresh and retry on their
+            // own, and uploads have to do the same or a stale token surfaces to the
+            // user as "not authenticated" mid-session.
+            if (response.status.value == 401) {
+                response = client.post(bytes, fileName, mimeType, requireToken(forceRefresh = true))
             }
 
             val text = response.bodyAsText()
@@ -79,6 +68,34 @@ class FileUploader(
         } finally {
             client.close()
         }
+    }
+
+    private suspend fun requireToken(forceRefresh: Boolean): String =
+        tokenProvider.accessToken(forceRefresh) ?: throw IllegalStateException("Not authenticated")
+
+    private suspend fun HttpClient.post(
+        bytes: ByteArray,
+        fileName: String?,
+        mimeType: String?,
+        token: String,
+    ): HttpResponse = submitFormWithBinaryData(
+        url = "${BuildKonfig.API_API}/files/upload",
+        formData = formData {
+            append(
+                key = "file",
+                value = bytes,
+                headers = Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=\"${fileName ?: "photo.jpg"}\"")
+                    append(HttpHeaders.ContentType, mimeType ?: "application/octet-stream")
+                },
+            )
+        },
+    ) {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        header(DEVICE_ID_HEADER, deviceId)
+        // Must match the agent Apollo sends: the server hashes it into the token
+        // fingerprint, so a different value here reads as a different device.
+        header(HttpHeaders.UserAgent, USER_AGENT)
     }
 
     private companion object {

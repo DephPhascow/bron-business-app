@@ -58,6 +58,7 @@ class TokenProvider(
             val response = ApolloClient.Builder()
                 .serverUrl(BuildKonfig.API_URL)
                 .addHttpHeader(DEVICE_ID_HEADER, authPref.deviceId)
+                .addHttpHeader("User-Agent", USER_AGENT)
                 .build()
                 .mutation(RefreshTokenMutation(refreshToken = refreshToken))
                 .execute()
