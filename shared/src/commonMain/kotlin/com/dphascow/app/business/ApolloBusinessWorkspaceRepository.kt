@@ -4,20 +4,28 @@ import com.apollographql.apollo.api.Optional
 import com.dphascow.app.expects.PickedPhoto
 import com.dphascow.app.graphql.AddEmployeesMutation
 import com.dphascow.app.graphql.AddGalleryImageMutation
+import com.dphascow.app.graphql.AddServiceToEmployeeMutation
 import com.dphascow.app.graphql.BusinessWorkspaceQuery
 import com.dphascow.app.graphql.CancelBookingMutation
-import com.dphascow.app.graphql.DeleteEmployeesMutation
+import com.dphascow.app.graphql.CategoriesQuery
+import com.dphascow.app.graphql.DeleteEmployeeMutation
+import com.dphascow.app.graphql.DeleteEmployeeServiceMutation
+import com.dphascow.app.graphql.SetEmployeeSpecializationsMutation
 import com.dphascow.app.graphql.SpecialisationsQuery
 import com.dphascow.app.graphql.UpdateBookingMutation
 import com.dphascow.app.graphql.UpdateBusinessMutation
+import com.dphascow.app.graphql.UpdateEmployeeServiceMutation
 import com.dphascow.app.graphql.UpdateEmployeesMutation
+import com.dphascow.app.graphql.fragment.ServiceFields
 import com.dphascow.app.graphql.fragment.WorkTimeFields
+import com.dphascow.app.graphql.type.AddServiceInput
 import com.dphascow.app.graphql.type.EmployeeRoleEnum
 import com.dphascow.app.graphql.type.FromToTimeInput
 import com.dphascow.app.graphql.type.ResultStatus
 import com.dphascow.app.graphql.type.UpdateBooking
 import com.dphascow.app.graphql.type.UpdateBusiness
 import com.dphascow.app.graphql.type.UpdateEmployee
+import com.dphascow.app.graphql.type.UpdateServiceInput
 import com.dphascow.app.graphql.type.WorkTimeInput
 import com.dphascow.app.repositories.ApiAuthClient
 import com.dphascow.app.repositories.FileUploader
@@ -57,21 +65,14 @@ class ApolloBusinessWorkspaceRepository(
                     userId = employee.userId.toString(),
                     name = employee.user.fullName,
                     role = employee.role.toDomain(),
-                    specialisationId = employee.specialization.pk.toString(),
-                    specialisationName = employee.specialization.name,
+                    specialisations = employee.specializations.map { spec ->
+                        Specialisation(id = spec.pk.toString(), name = specialisationName(spec.pk, spec.name))
+                    },
+                    services = employee.services.map { it.serviceFields.toDomain() },
                     avatarUrl = employee.user.imageUrl,
                     phone = employee.user.phone,
                     email = employee.user.email,
                     isActive = employee.isActive,
-                )
-            },
-            services = business.services.map { service ->
-                BusinessService(
-                    id = service.pk.toString(),
-                    name = service.name.orEmpty().ifBlank { "#${service.pk}" },
-                    duration = service.durations.toString(),
-                    price = service.cost.toString(),
-                    isActive = service.isActive,
                 )
             },
             gallery = business.galleryImages.map { photo ->
@@ -131,7 +132,7 @@ class ApolloBusinessWorkspaceRepository(
         businessId: String,
         userId: String,
         role: EmployeeRole,
-        specialisationId: String?,
+        specialisationIds: List<String>,
         isActive: Boolean,
         lang: String,
     ): BusinessEmployee {
@@ -139,7 +140,6 @@ class ApolloBusinessWorkspaceRepository(
             businessId = Optional.present(businessId.toIntRequired("business id")),
             userId = Optional.present(userId.toIntRequired("user id")),
             role = Optional.present(role.toApi()),
-            specializationId = Optional.presentIfNotNull(specialisationId?.toIntOrNull()),
             isActive = Optional.present(isActive),
         )
 
@@ -147,13 +147,16 @@ class ApolloBusinessWorkspaceRepository(
         val employee = response.data?.addEmployees
             ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add employee response")
 
+        val specialisations = setSpecialisations(businessId, employee.pk.toString(), specialisationIds, lang)
+            ?: employee.specializations.map { Specialisation(it.pk.toString(), specialisationName(it.pk, it.name)) }
+
         return BusinessEmployee(
             id = employee.pk.toString(),
             userId = employee.user.pk.toString(),
             name = employee.user.fullName,
             role = employee.role.toDomain(),
-            specialisationId = employee.specialization.pk.toString(),
-            specialisationName = employee.specialization.name,
+            specialisations = specialisations,
+            services = employee.services.map { it.serviceFields.toDomain() },
             avatarUrl = employee.user.imageUrl,
             phone = employee.user.phone,
             email = employee.user.email,
@@ -162,15 +165,15 @@ class ApolloBusinessWorkspaceRepository(
     }
 
     override suspend fun updateEmployee(
+        businessId: String,
         employeeId: String,
         role: EmployeeRole?,
-        specialisationId: String?,
+        specialisationIds: List<String>?,
         isActive: Boolean?,
         lang: String,
     ): BusinessEmployee {
         val input = UpdateEmployee(
             role = Optional.presentIfNotNull(role?.toApi()),
-            specializationId = Optional.presentIfNotNull(specialisationId?.toIntOrNull()),
             isActive = Optional.presentIfNotNull(isActive),
         )
 
@@ -180,13 +183,16 @@ class ApolloBusinessWorkspaceRepository(
         val employee = response.data?.updateEmployees
             ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update employee response")
 
+        val specialisations = setSpecialisations(businessId, employeeId, specialisationIds, lang)
+            ?: employee.specializations.map { Specialisation(it.pk.toString(), specialisationName(it.pk, it.name)) }
+
         return BusinessEmployee(
             id = employee.pk.toString(),
             userId = employee.user.pk.toString(),
             name = employee.user.fullName,
             role = employee.role.toDomain(),
-            specialisationId = employee.specialization.pk.toString(),
-            specialisationName = employee.specialization.name,
+            specialisations = specialisations,
+            services = employee.services.map { it.serviceFields.toDomain() },
             avatarUrl = employee.user.imageUrl,
             phone = employee.user.phone,
             email = employee.user.email,
@@ -194,12 +200,131 @@ class ApolloBusinessWorkspaceRepository(
         )
     }
 
-    override suspend fun deleteEmployee(employeeId: String) {
+    /**
+     * Replaces the employee's specialisations with [specialisationIds] and returns the new list.
+     * Returns `null` when [specialisationIds] is `null`, i.e. the caller wants them left as-is.
+     */
+    private suspend fun setSpecialisations(
+        businessId: String,
+        employeeId: String,
+        specialisationIds: List<String>?,
+        lang: String,
+    ): List<Specialisation>? {
+        if (specialisationIds == null) return null
+
         val response = requester.requestMutation(
-            DeleteEmployeesMutation(pk = employeeId.toIntRequired("employee id"))
+            SetEmployeeSpecializationsMutation(
+                businessId = businessId.toIntRequired("business id"),
+                employeeId = employeeId.toIntRequired("employee id"),
+                specializationIds = specialisationIds.map { it.toIntRequired("specialisation id") },
+                lang = lang,
+            )
         )
-        if (response.data?.deleteEmployees == null) {
+        val list = response.data?.setEmployeeSpecializations
+            ?: throw IllegalStateException(
+                response.errors?.firstOrNull()?.message ?: "Empty set specialisations response"
+            )
+
+        return list.filterNotNull().map { spec ->
+            Specialisation(id = spec.pk.toString(), name = specialisationName(spec.pk, spec.name))
+        }
+    }
+
+    override suspend fun deleteEmployee(businessId: String, employeeId: String) {
+        val response = requester.requestMutation(
+            DeleteEmployeeMutation(
+                businessId = businessId.toIntRequired("business id"),
+                employeeId = employeeId.toIntRequired("employee id"),
+            )
+        )
+        if (response.data?.deleteEmployee == null) {
             throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty delete employee response")
+        }
+    }
+
+    override suspend fun loadCategories(lang: String): List<ServiceCategory> {
+        val response = requester.requestQuery(CategoriesQuery(lang = lang))
+        val list = response.data?.categories
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty categories response")
+
+        return list.map { item ->
+            ServiceCategory(id = item.pk.toString(), name = item.name.orEmpty().ifBlank { "#${item.pk}" })
+        }
+    }
+
+    override suspend fun addEmployeeService(
+        businessId: String,
+        employeeId: String,
+        name: Map<String, String>,
+        cost: Int,
+        duration: String,
+        categoryId: String?,
+        isActive: Boolean,
+        lang: String,
+    ): BusinessService {
+        val input = AddServiceInput(
+            name = name,
+            cost = cost,
+            durations = duration,
+            categoryId = Optional.presentIfNotNull(categoryId?.toIntOrNull()),
+            isActive = Optional.present(isActive),
+        )
+
+        val response = requester.requestMutation(
+            AddServiceToEmployeeMutation(
+                businessId = businessId.toIntRequired("business id"),
+                employeeId = employeeId.toIntRequired("employee id"),
+                input = input,
+                lang = lang,
+            )
+        )
+        val service = response.data?.addServiceToEmployee
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add service response")
+
+        return service.serviceFields.toDomain()
+    }
+
+    override suspend fun updateEmployeeService(
+        businessId: String,
+        serviceId: String,
+        name: Map<String, String>?,
+        cost: Int?,
+        duration: String?,
+        categoryId: String?,
+        isActive: Boolean?,
+        lang: String,
+    ): BusinessService {
+        val input = UpdateServiceInput(
+            name = Optional.presentIfNotNull(name),
+            cost = Optional.presentIfNotNull(cost),
+            durations = Optional.presentIfNotNull(duration),
+            categoryId = Optional.presentIfNotNull(categoryId?.toIntOrNull()),
+            isActive = Optional.presentIfNotNull(isActive),
+        )
+
+        val response = requester.requestMutation(
+            UpdateEmployeeServiceMutation(
+                businessId = businessId.toIntRequired("business id"),
+                serviceId = serviceId.toIntRequired("service id"),
+                input = input,
+                lang = lang,
+            )
+        )
+        val service = response.data?.updateEmployeeService
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update service response")
+
+        return service.serviceFields.toDomain()
+    }
+
+    override suspend fun deleteEmployeeService(businessId: String, serviceId: String) {
+        val response = requester.requestMutation(
+            DeleteEmployeeServiceMutation(
+                businessId = businessId.toIntRequired("business id"),
+                serviceId = serviceId.toIntRequired("service id"),
+            )
+        )
+        if (response.data?.deleteEmployeeService == null) {
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty delete service response")
         }
     }
 
@@ -256,6 +381,28 @@ class ApolloBusinessWorkspaceRepository(
             throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add gallery image response")
         }
     }
+
+    /** Maps the `ServiceFields` GraphQL fragment into the domain [BusinessService]. */
+    private fun ServiceFields.toDomain(): BusinessService = BusinessService(
+        id = pk.toString(),
+        name = name.orEmpty().ifBlank { "#$pk" },
+        // `nameAll` is the JSON scalar — a language-keyed object we only trust to hold strings.
+        nameByLang = (nameAll as? Map<*, *>)
+            .orEmpty()
+            .mapNotNull { (key, value) ->
+                val code = key as? String ?: return@mapNotNull null
+                val text = value as? String ?: return@mapNotNull null
+                code to text
+            }
+            .toMap(),
+        cost = cost,
+        duration = durations,
+        categoryId = categoryId?.toString(),
+        isActive = isActive,
+    )
+
+    /** Specialisation names are localised and may be missing for the requested language. */
+    private fun specialisationName(pk: Int, name: String?): String = name.orEmpty().ifBlank { "#$pk" }
 
     private fun String.toIntRequired(field: String): Int =
         toIntOrNull() ?: throw IllegalArgumentException("$field must be an integer for API requests")

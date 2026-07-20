@@ -56,7 +56,9 @@ import ui.theme.T
 fun ChatListScreen(
     repository: ChatRepository?,
     onOpenChat: (String) -> Unit,
-    onBack: () -> Unit,
+    /** Null when chats is reached as a bottom-bar tab — there is nothing to go back to. */
+    onBack: (() -> Unit)? = null,
+    onMenu: (() -> Unit)? = null,
 ) {
     var chats by remember { mutableStateOf<List<ChatSummary>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -74,7 +76,7 @@ fun ChatListScreen(
     }
 
     var query by remember { mutableStateOf("") }
-    PageLayout(stringResource(Res.string.chat_title), stringResource(Res.string.chat_subtitle), onBack) {
+    PageLayout(stringResource(Res.string.chat_title), stringResource(Res.string.chat_subtitle), onBack, onMenu) {
         SearchField(query) { query = it }
         val filtered = chats.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
         when {

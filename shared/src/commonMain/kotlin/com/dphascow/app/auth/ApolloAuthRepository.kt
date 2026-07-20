@@ -55,6 +55,26 @@ class ApolloAuthRepository(
         return CreateBusinessResult(business = option)
     }
 
+    override suspend fun logout(allDevices: Boolean) {
+        knownBusinesses = emptyList()
+
+        val status: Boolean
+        val message: String?
+        if (allDevices) {
+            val response = apiAuthClient.logoutAllDevices()
+            val result = response.data?.logoutAllDevices
+            status = result?.status == true
+            message = result?.message ?: response.errors?.firstOrNull()?.message
+        } else {
+            val response = apiAuthClient.logout()
+            val result = response.data?.logout
+            status = result?.status == true
+            message = result?.message ?: response.errors?.firstOrNull()?.message
+        }
+
+        if (!status) throw IllegalStateException(message?.ifBlank { null } ?: "Could not log out")
+    }
+
     private suspend fun loadAuthorizedBusinesses(token: String): List<BusinessOption> {
         val response = apiAuthClient.meForAuth(token = token)
 

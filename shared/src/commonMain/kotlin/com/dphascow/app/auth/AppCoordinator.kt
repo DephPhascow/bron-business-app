@@ -276,10 +276,24 @@ class AppCoordinator(
         )
     }
 
-    fun logout() {
+    /**
+     * Drops the local session without touching the server. Used when the session is
+     * already dead — an expired refresh token has nothing left to invalidate.
+     */
+    fun clearSession() {
         cachedBusinesses.clear()
         prefs.clearAuthSession()
         _state.value = AppUiState.Auth(phone = prefs.lastLoginPhone.orEmpty())
+    }
+
+    /**
+     * Signs out: asks the server to invalidate the refresh token, then drops the local
+     * session. The local session is cleared even if the server call fails — tapping
+     * "log out" must sign you out offline too.
+     */
+    suspend fun logout(allDevices: Boolean = false) {
+        runCatching { authRepository.logout(allDevices) }
+        clearSession()
     }
 
     private fun activateBusiness(phone: String, business: BusinessOption, rememberChoice: Boolean) {

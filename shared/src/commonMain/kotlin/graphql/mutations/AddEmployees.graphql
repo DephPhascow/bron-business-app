@@ -10,9 +10,12 @@ mutation AddEmployees($input: UpdateEmployee!, $lang: String!) {
       email
       imageUrl
     }
-    specialization {
+    specializations {
       pk
       name(lang: $lang)
+    }
+    services {
+      ...ServiceFields
     }
   }
 }

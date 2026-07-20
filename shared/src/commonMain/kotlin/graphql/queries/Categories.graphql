@@ -1,0 +1,6 @@
+query Categories($lang: String!) {
+  categories {
+    pk
+    name(lang: $lang)
+  }
+}

@@ -1,5 +1,0 @@
-mutation DeleteEmployees($pk: Int!) {
-  deleteEmployees(pk: $pk) {
-    pk
-  }
-}

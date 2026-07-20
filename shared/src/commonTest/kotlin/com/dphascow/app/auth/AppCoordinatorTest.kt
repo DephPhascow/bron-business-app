@@ -162,6 +162,8 @@ private class FakeAuthRepository(
             role = if (photo != null) "Owner" else "Administrator",
         )
     )
+
+    override suspend fun logout(allDevices: Boolean) = Unit
 }
 
 private class FakeSettings : com.russhwolf.settings.Settings {

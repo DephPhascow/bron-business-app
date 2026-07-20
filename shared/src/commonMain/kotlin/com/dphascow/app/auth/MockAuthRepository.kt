@@ -50,6 +50,11 @@ class MockAuthRepository : AuthRepository {
         return CreateBusinessResult(business = newBusiness)
     }
 
+    override suspend fun logout(allDevices: Boolean) {
+        delay(150)
+        lastBusinesses = emptyList()
+    }
+
     private fun buildBusinesses(phone: String): List<BusinessOption> {
         val normalizedPhone = phone.trim().lowercase()
         return when {

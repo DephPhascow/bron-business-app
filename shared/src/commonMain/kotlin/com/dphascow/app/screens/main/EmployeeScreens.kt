@@ -1,5 +1,6 @@
 package com.dphascow.app.screens.main
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,10 +34,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dphascow.app.business.BusinessEmployee
+import com.dphascow.app.business.BusinessService
 import com.dphascow.app.business.BusinessWorkspace
 import com.dphascow.app.business.BusinessWorkspaceRepository
 import com.dphascow.app.business.EmployeeRole
+import com.dphascow.app.business.SERVICE_NAME_LANGS
+import com.dphascow.app.business.ServiceCategory
 import com.dphascow.app.business.Specialisation
+import com.dphascow.app.business.specialisationSummary
 import com.dphascow.app.ui.NetworkImage
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
@@ -80,9 +85,12 @@ fun EmployeeDetailsScreen(
     employee: BusinessEmployee?,
     repository: BusinessWorkspaceRepository?,
     chatRepository: com.dphascow.app.chat.ChatRepository?,
+    businessId: String,
     lang: String,
     onBack: () -> Unit,
     onEditClick: () -> Unit,
+    onAddServiceClick: () -> Unit,
+    onEditServiceClick: (String) -> Unit,
     onOpenConversation: (String) -> Unit,
     onDeleted: () -> Unit,
 ) {
@@ -109,7 +117,7 @@ fun EmployeeDetailsScreen(
             )
         }
         InfoCard(stringResource(Res.string.employee_contacts_title), contacts)
-        employee.specialisationName?.let { spec ->
+        employee.specialisationSummary?.let { spec ->
             InfoCard(stringResource(Res.string.employee_specialisation_label), spec)
         }
         InfoCard(
@@ -118,6 +126,24 @@ fun EmployeeDetailsScreen(
             stringResource(Res.string.common_edit),
             onEditClick,
         )
+
+        Text(stringResource(Res.string.services_title), color = T.c.dark7, style = T.t.t4SamiBold)
+        InfoCard(
+            stringResource(Res.string.employee_service_add_title),
+            stringResource(Res.string.employee_service_add_subtitle),
+            stringResource(Res.string.common_add),
+            onAddServiceClick,
+        )
+        if (employee.services.isEmpty()) {
+            EmptyStateCard(stringResource(Res.string.services_empty))
+        }
+        employee.services.forEach { service ->
+            InfoCard(
+                service.name,
+                "${service.duration} · ${service.cost}",
+                stringResource(Res.string.common_edit),
+            ) { onEditServiceClick(service.id) }
+        }
 
         error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
@@ -165,7 +191,7 @@ fun EmployeeDetailsScreen(
                 deleting = true
                 error = null
                 scope.launch {
-                    runCatching { repo.deleteEmployee(employee.id) }
+                    runCatching { repo.deleteEmployee(businessId, employee.id) }
                         .onSuccess { onDeleted() }
                         .onFailure { deleting = false; error = it.message ?: "Error" }
                 }
@@ -202,7 +228,10 @@ fun EmployeeEditScreen(
     }
 
     var role by remember(employee) { mutableStateOf(employee?.role ?: EmployeeRole.SPECIALIST) }
-    var specialisationId by remember(employee) { mutableStateOf(employee?.specialisationId) }
+    // Prefilled with what the employee already has, so editing re-picks rather than starts empty.
+    var specialisationIds by remember(employee) {
+        mutableStateOf(employee?.specialisations.orEmpty().map { it.id }.toSet())
+    }
     var isActive by remember(employee) { mutableStateOf(employee?.isActive ?: true) }
 
     // Invite flow (add mode only)
@@ -311,7 +340,9 @@ fun EmployeeEditScreen(
             if (!addSelf) {
                 RoleSelector(role) { role = it }
             }
-            SpecialisationSelector(specialisations, specialisationId) { specialisationId = it }
+            SpecialisationSelector(specialisations, specialisationIds) { id ->
+                specialisationIds = if (id in specialisationIds) specialisationIds - id else specialisationIds + id
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
                 Switch(checked = isActive, onCheckedChange = { isActive = it })
                 Text(stringResource(Res.string.employee_active_label), color = T.c.onSurface, style = T.t.t3SemiBold)
@@ -323,7 +354,7 @@ fun EmployeeEditScreen(
             SubmitButton(
                 text = if (isAdd) stringResource(Res.string.employee_add_submit) else stringResource(Res.string.common_save),
                 loading = submitting,
-                enabled = repository != null && specialisationId != null && (!isAdd || effectiveUserId != null),
+                enabled = repository != null && specialisationIds.isNotEmpty() && (!isAdd || effectiveUserId != null),
             ) {
                 submitting = true
                 error = null
@@ -334,15 +365,16 @@ fun EmployeeEditScreen(
                                 businessId = businessId,
                                 userId = effectiveUserId!!,
                                 role = if (addSelf) EmployeeRole.SPECIALIST else role,
-                                specialisationId = specialisationId,
+                                specialisationIds = specialisationIds.toList(),
                                 isActive = isActive,
                                 lang = lang,
                             )
                         } else {
                             repository!!.updateEmployee(
+                                businessId = businessId,
                                 employeeId = employee!!.id,
                                 role = role,
-                                specialisationId = specialisationId,
+                                specialisationIds = specialisationIds.toList(),
                                 isActive = isActive,
                                 lang = lang,
                             )
@@ -354,6 +386,187 @@ fun EmployeeEditScreen(
             }
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !submitting) {
                 Text(stringResource(Res.string.common_cancel))
+            }
+        }
+    }
+}
+
+@Composable
+fun EmployeeServiceEditScreen(
+    repository: BusinessWorkspaceRepository?,
+    businessId: String,
+    employeeId: String,
+    service: BusinessService?,
+    lang: String,
+    onBack: () -> Unit,
+    onSaved: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val isAdd = service == null
+
+    var categories by remember { mutableStateOf<List<ServiceCategory>>(emptyList()) }
+    LaunchedEffect(repository, lang) {
+        if (repository != null) {
+            categories = runCatching { repository.loadCategories(lang) }.getOrDefault(emptyList())
+        }
+    }
+
+    // One field per language: the API stores the name as a language-keyed map.
+    var names by remember(service) {
+        mutableStateOf(SERVICE_NAME_LANGS.associateWith { code -> service?.nameByLang?.get(code).orEmpty() })
+    }
+    var categoryId by remember(service) { mutableStateOf(service?.categoryId) }
+    var cost by remember(service) { mutableStateOf(service?.cost?.toString().orEmpty()) }
+    var duration by remember(service) { mutableStateOf(service?.duration ?: DEFAULT_SERVICE_DURATION) }
+    var isActive by remember(service) { mutableStateOf(service?.isActive ?: true) }
+
+    var submitting by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    val title = if (isAdd) {
+        stringResource(Res.string.employee_service_add_title)
+    } else {
+        stringResource(Res.string.employee_service_edit_title)
+    }
+
+    PageLayout(title, stringResource(Res.string.employee_service_edit_subtitle), onBack) {
+        SERVICE_NAME_LANGS.forEach { code ->
+            OutlinedTextField(
+                value = names[code].orEmpty(),
+                onValueChange = { names = names + (code to it); error = null },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(Res.string.employee_service_name_label, code.uppercase())) },
+                singleLine = true,
+            )
+        }
+
+        CategorySelector(categories, categoryId) { categoryId = it }
+
+        OutlinedTextField(
+            value = cost,
+            onValueChange = { raw -> cost = raw.filter(Char::isDigit); error = null },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(Res.string.service_price_title)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+
+        OutlinedTextField(
+            value = duration,
+            onValueChange = { duration = it; error = null },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(Res.string.service_duration_title)) },
+            placeholder = { Text(DEFAULT_SERVICE_DURATION) },
+            singleLine = true,
+        )
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(T.d.sm)) {
+            Switch(checked = isActive, onCheckedChange = { isActive = it })
+            Text(stringResource(Res.string.employee_active_label), color = T.c.onSurface, style = T.t.t3SemiBold)
+        }
+
+        error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
+
+        val filledNames = names.filterValues { it.isNotBlank() }
+        SubmitButton(
+            text = stringResource(Res.string.common_save),
+            loading = submitting,
+            enabled = repository != null && filledNames.isNotEmpty() && cost.toIntOrNull() != null &&
+                duration.isNotBlank(),
+        ) {
+            submitting = true
+            error = null
+            scope.launch {
+                val result = runCatching {
+                    if (isAdd) {
+                        repository!!.addEmployeeService(
+                            businessId = businessId,
+                            employeeId = employeeId,
+                            name = filledNames,
+                            cost = cost.toInt(),
+                            duration = duration.trim(),
+                            categoryId = categoryId,
+                            isActive = isActive,
+                            lang = lang,
+                        )
+                    } else {
+                        repository!!.updateEmployeeService(
+                            businessId = businessId,
+                            serviceId = service!!.id,
+                            name = filledNames,
+                            cost = cost.toInt(),
+                            duration = duration.trim(),
+                            categoryId = categoryId,
+                            isActive = isActive,
+                            lang = lang,
+                        )
+                    }
+                }
+                result.onSuccess { onSaved() }
+                    .onFailure { submitting = false; error = it.message }
+            }
+        }
+
+        if (!isAdd) {
+            OutlinedButton(
+                onClick = { confirmDelete = true },
+                enabled = !submitting && repository != null,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(Res.string.employee_service_delete_action))
+            }
+        }
+
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !submitting) {
+            Text(stringResource(Res.string.common_cancel))
+        }
+    }
+
+    if (confirmDelete) {
+        ConfirmDialog(
+            title = stringResource(Res.string.confirm_delete_service),
+            confirmText = stringResource(Res.string.employee_service_delete_action),
+            onConfirm = {
+                confirmDelete = false
+                val repo = repository ?: return@ConfirmDialog
+                submitting = true
+                error = null
+                scope.launch {
+                    runCatching { repo.deleteEmployeeService(businessId, service!!.id) }
+                        .onSuccess { onSaved() }
+                        .onFailure { submitting = false; error = it.message }
+                }
+            },
+            onDismiss = { confirmDelete = false },
+        )
+    }
+}
+
+/** The `Time` scalar the API expects for a service duration. */
+private const val DEFAULT_SERVICE_DURATION = "01:00:00"
+
+@Composable
+private fun CategorySelector(
+    options: List<ServiceCategory>,
+    selectedId: String?,
+    onSelected: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = options.firstOrNull { it.id == selectedId }?.name
+        ?: stringResource(Res.string.employee_service_category_select)
+
+    Text(stringResource(Res.string.employee_service_category_label), color = T.c.dark7, style = T.t.t4SamiBold)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(selectedName)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.name) },
+                    onClick = { onSelected(option.id); expanded = false },
+                )
             }
         }
     }
@@ -373,27 +586,28 @@ private fun RoleSelector(selected: EmployeeRole, onSelected: (EmployeeRole) -> U
     }
 }
 
+/** An employee can hold several specialisations, so each option is an independent checkbox. */
 @Composable
 private fun SpecialisationSelector(
     options: List<Specialisation>,
-    selectedId: String?,
-    onSelected: (String?) -> Unit,
+    selectedIds: Set<String>,
+    onToggle: (String) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedName = options.firstOrNull { it.id == selectedId }?.name
-        ?: stringResource(Res.string.employee_specialisation_select)
-
     Text(stringResource(Res.string.employee_specialisation_label), color = T.c.dark7, style = T.t.t4SamiBold)
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(selectedName)
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.name) },
-                    onClick = { onSelected(option.id); expanded = false },
-                )
+    if (options.isEmpty()) {
+        Text(stringResource(Res.string.employee_specialisation_empty), color = T.c.dark7, style = T.t.t3)
+        return
+    }
+    Text(stringResource(Res.string.employee_specialisation_select), color = T.c.dark7, style = T.t.t3)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        options.forEach { option ->
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { onToggle(option.id) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(T.d.sm),
+            ) {
+                Checkbox(checked = option.id in selectedIds, onCheckedChange = { onToggle(option.id) })
+                Text(option.name, color = T.c.onSurface, style = T.t.t3)
             }
         }
     }

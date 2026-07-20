@@ -10,7 +10,6 @@ data class BusinessWorkspace(
     val reviewsCount: Int,
     val reviews: List<BusinessReview>,
     val employees: List<BusinessEmployee>,
-    val services: List<BusinessService>,
     val gallery: List<BusinessGalleryPhoto>,
     val orders: List<BusinessOrder>,
     val workTime: WeeklySchedule = WeeklySchedule(),
@@ -55,8 +54,9 @@ data class BusinessEmployee(
     val userId: String,
     val name: String,
     val role: EmployeeRole,
-    val specialisationId: String?,
-    val specialisationName: String?,
+    val specialisations: List<Specialisation>,
+    /** Services are owned by the employee who performs them, not by the business. */
+    val services: List<BusinessService>,
     val avatarUrl: String?,
     val phone: String?,
     val email: String?,
@@ -73,12 +73,29 @@ data class Specialisation(
     val name: String,
 )
 
+/** Human-readable list of an employee's specialisations, or `null` when they have none. */
+val BusinessEmployee.specialisationSummary: String?
+    get() = specialisations.joinToString(", ") { it.name }.ifBlank { null }
+
 data class BusinessService(
     val id: String,
+    /** Name in the currently requested language; may be blank if untranslated. */
     val name: String,
+    /** All translations keyed by language code — what the edit form works with. */
+    val nameByLang: Map<String, String>,
+    val cost: Int,
+    /** "HH:mm:ss", matching the `Time` scalar the API expects. */
     val duration: String,
-    val price: String,
+    val categoryId: String?,
     val isActive: Boolean,
+)
+
+/** Language codes a service name can be entered in. */
+val SERVICE_NAME_LANGS = listOf("ru", "uz", "en")
+
+data class ServiceCategory(
+    val id: String,
+    val name: String,
 )
 
 data class BusinessGalleryPhoto(

@@ -4,12 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.DevicesOther
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
@@ -48,17 +52,21 @@ import ui.theme.T
 private val LANGUAGES = listOf("ru" to "Русский", "uz" to "O‘zbek", "en" to "English")
 
 /**
- * Navigation drawer: links to the Account and Settings pages. It only navigates —
- * the pages themselves hold their content.
+ * Navigation drawer: links to the Account and Settings pages, plus logout pinned to the
+ * bottom. It only navigates — the pages themselves hold their content.
  */
 @Composable
 fun AccountDrawer(
     onOpenAccount: () -> Unit,
     onOpenSettings: () -> Unit,
+    onLogout: (allDevices: Boolean) -> Unit,
 ) {
+    // Non-null while a logout is pending confirmation; true = every device.
+    var confirmLogoutAllDevices by remember { mutableStateOf<Boolean?>(null) }
+
     ModalDrawerSheet {
         Column(
-            modifier = Modifier.padding(T.d.md),
+            modifier = Modifier.fillMaxHeight().padding(T.d.md),
             verticalArrangement = Arrangement.spacedBy(T.d.xs),
         ) {
             Text(
@@ -79,7 +87,51 @@ fun AccountDrawer(
                 selected = false,
                 onClick = onOpenSettings,
             )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            NavigationDrawerItem(
+                label = { Text(stringResource(Res.string.home_logout), color = T.c.redError) },
+                icon = {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.Logout,
+                        contentDescription = null,
+                        tint = T.c.redError,
+                    )
+                },
+                selected = false,
+                onClick = { confirmLogoutAllDevices = false },
+            )
+            NavigationDrawerItem(
+                label = { Text(stringResource(Res.string.logout_all_devices), color = T.c.redError) },
+                icon = {
+                    Icon(
+                        Icons.Outlined.DevicesOther,
+                        contentDescription = null,
+                        tint = T.c.redError,
+                    )
+                },
+                selected = false,
+                onClick = { confirmLogoutAllDevices = true },
+            )
         }
+    }
+
+    confirmLogoutAllDevices?.let { allDevices ->
+        ConfirmDialog(
+            title = if (allDevices) {
+                stringResource(Res.string.confirm_logout_all_devices)
+            } else {
+                stringResource(Res.string.confirm_logout)
+            },
+            confirmText = if (allDevices) {
+                stringResource(Res.string.logout_all_devices)
+            } else {
+                stringResource(Res.string.home_logout)
+            },
+            onConfirm = { confirmLogoutAllDevices = null; onLogout(allDevices) },
+            onDismiss = { confirmLogoutAllDevices = null },
+        )
     }
 }
 
@@ -182,7 +234,7 @@ fun AccountScreen(
     }
 }
 
-/** Settings page: language, theme and logout. */
+/** Settings page: language and theme. Logging out lives at the bottom of the drawer. */
 @Composable
 fun SettingsScreen(
     lang: String,
@@ -190,7 +242,6 @@ fun SettingsScreen(
     onLangChange: (String) -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onBack: () -> Unit,
-    onLogout: () -> Unit,
 ) {
     PageLayout(stringResource(Res.string.settings_title), stringResource(Res.string.settings_subtitle), onBack) {
         Text(stringResource(Res.string.account_language), color = T.c.dark7, style = T.t.t4SamiBold)
@@ -213,10 +264,6 @@ fun SettingsScreen(
                     OutlinedButton(onClick = { onThemeChange(mode) }, modifier = Modifier.weight(1f)) { Text(mode.label()) }
                 }
             }
-        }
-
-        Button(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(Res.string.home_logout))
         }
     }
 }

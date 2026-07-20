@@ -8,8 +8,11 @@ sealed interface AppRoute {
     data class EmployeeDetails(val employeeId: String) : AppRoute
     data class EmployeeEdit(val employeeId: String? = null) : AppRoute
 
-    data object Services : AppRoute
-    data class ServiceDetails(val serviceId: String) : AppRoute
+    /** Add (null [serviceId]) or edit one of the employee's services. */
+    data class EmployeeServiceEdit(
+        val employeeId: String,
+        val serviceId: String? = null,
+    ) : AppRoute
 
     data object Gallery : AppRoute
     data object GalleryUpload : AppRoute

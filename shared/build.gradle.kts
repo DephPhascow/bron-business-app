@@ -211,7 +211,9 @@ apollo {
         }
         mapScalarToKotlinString("Date")
         mapScalarToKotlinString("DateTime")
-        mapScalarToKotlinString("JSON")
+        // JSON carries localised name maps ({"ru": …, "uz": …}); as a String it would be
+        // serialised as a quoted JSON string rather than an object.
+        mapScalar("JSON", "kotlin.Any", "com.apollographql.apollo.api.AnyAdapter")
         mapScalarToKotlinString("Time")
     }
 }

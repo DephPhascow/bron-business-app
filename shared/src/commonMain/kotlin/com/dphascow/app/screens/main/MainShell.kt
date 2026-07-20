@@ -2,8 +2,17 @@ package com.dphascow.app.screens.main
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,7 +30,11 @@ import com.dphascow.app.chat.ChatRepository
 import com.dphascow.app.navigation.AppRoute
 import com.dphascow.app.navigation.MainNavigator
 import com.dphascow.app.profile.ProfileRepository
+import com.dphascow.app.resources.Res
+import com.dphascow.app.resources.*
+import org.jetbrains.compose.resources.stringResource
 import settings.ThemeMode
+import ui.theme.T
 
 @Composable
 fun MainShell(
@@ -34,7 +47,7 @@ fun MainShell(
     onLangChange: (String) -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onChangeBusinessClick: () -> Unit,
-    onLogoutClick: () -> Unit,
+    onLogoutClick: (allDevices: Boolean) -> Unit,
 ) {
     val navigator = remember { MainNavigator() }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -103,16 +116,31 @@ fun MainShell(
                     scope.launch { drawerState.close() }
                     navigator.open(AppRoute.Settings)
                 },
+                onLogout = { allDevices ->
+                    scope.launch { drawerState.close() }
+                    onLogoutClick(allDevices)
+                },
             )
         },
     ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        containerColor = T.c.background,
+        bottomBar = {
+            // Only the two root tabs carry the bar; pushed pages show a back arrow instead.
+            if (route == AppRoute.Dashboard || route == AppRoute.Chats) {
+                MainBottomBar(
+                    current = route,
+                    onSelect = { navigator.reset(it) },
+                )
+            }
+        },
+    ) { padding ->
+    Column(modifier = Modifier.fillMaxSize().padding(padding)) {
         when (route) {
             AppRoute.Dashboard -> DashboardScreen(
                 state = state,
                 onOpenBusinessSettings = { navigator.open(AppRoute.BusinessSettings) },
                 onOpenEmployees = { navigator.open(AppRoute.Employees) },
-                onOpenServices = { navigator.open(AppRoute.Services) },
                 onOpenGallery = { navigator.open(AppRoute.Gallery) },
                 onOpenOrders = { navigator.open(AppRoute.Orders) },
                 onOpenAnalytics = { navigator.open(AppRoute.Analytics) },
@@ -143,9 +171,12 @@ fun MainShell(
                 employee = workspace?.employees?.firstOrNull { it.id == route.employeeId },
                 repository = businessWorkspaceRepository,
                 chatRepository = chatRepository,
+                businessId = state.business.id,
                 lang = lang,
                 onBack = { navigator.back() },
                 onEditClick = { navigator.open(AppRoute.EmployeeEdit(route.employeeId)) },
+                onAddServiceClick = { navigator.open(AppRoute.EmployeeServiceEdit(route.employeeId)) },
+                onEditServiceClick = { navigator.open(AppRoute.EmployeeServiceEdit(route.employeeId, it)) },
                 onOpenConversation = { navigator.open(AppRoute.Conversation(it)) },
                 onDeleted = {
                     reload()
@@ -168,17 +199,21 @@ fun MainShell(
                 },
             )
 
-            AppRoute.Services -> ServicesScreen(
-                workspace = workspace,
-                onBack = { navigator.back() },
-                onServiceClick = { navigator.open(AppRoute.ServiceDetails(it)) },
-            )
-
-            is AppRoute.ServiceDetails -> ServiceDetailsScreen(
-                workspace = workspace,
-                serviceId = route.serviceId,
-                onBack = { navigator.back() },
-            )
+            is AppRoute.EmployeeServiceEdit -> {
+                val employee = workspace?.employees?.firstOrNull { it.id == route.employeeId }
+                EmployeeServiceEditScreen(
+                    repository = businessWorkspaceRepository,
+                    businessId = state.business.id,
+                    employeeId = route.employeeId,
+                    service = route.serviceId?.let { id -> employee?.services?.firstOrNull { it.id == id } },
+                    lang = lang,
+                    onBack = { navigator.back() },
+                    onSaved = {
+                        reload()
+                        navigator.back()
+                    },
+                )
+            }
 
             AppRoute.Gallery -> GalleryScreen(
                 workspace = workspace,
@@ -235,13 +270,12 @@ fun MainShell(
                 onLangChange = onLangChange,
                 onThemeChange = onThemeChange,
                 onBack = { navigator.back() },
-                onLogout = onLogoutClick,
             )
 
             AppRoute.Chats -> ChatListScreen(
                 repository = chatRepository,
                 onOpenChat = { navigator.open(AppRoute.Conversation(it)) },
-                onBack = { navigator.back() },
+                onMenu = { scope.launch { drawerState.open() } },
             )
 
             is AppRoute.Conversation -> ConversationScreen(
@@ -251,6 +285,26 @@ fun MainShell(
             )
         }
     }
+    }
+    }
+}
+
+/** Root-level tabs: the dashboard and chats. */
+@Composable
+private fun MainBottomBar(current: AppRoute, onSelect: (AppRoute) -> Unit) {
+    NavigationBar(containerColor = T.c.surface) {
+        NavigationBarItem(
+            selected = current == AppRoute.Dashboard,
+            onClick = { onSelect(AppRoute.Dashboard) },
+            icon = { Icon(Icons.Outlined.Home, contentDescription = null) },
+            label = { Text(stringResource(Res.string.dashboard_title)) },
+        )
+        NavigationBarItem(
+            selected = current == AppRoute.Chats,
+            onClick = { onSelect(AppRoute.Chats) },
+            icon = { Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = null) },
+            label = { Text(stringResource(Res.string.chat_title)) },
+        )
     }
 }
 

@@ -58,7 +58,7 @@ fun App() {
     val pushRepository = remember { AppDependencies.createPushRepository(requester) }
 
     LaunchedEffect(Unit) {
-        onAuthError = coordinator::logout
+        onAuthError = coordinator::clearSession
         coordinator.bootstrap()
         com.dphascow.app.push.PushTokenBridge.handler = { token ->
             scope.launch { runCatching { pushRepository.registerToken(token) } }
@@ -107,7 +107,7 @@ fun App() {
                             }
                         },
                         onCreateBusinessClick = coordinator::openCreateBusiness,
-                        onLogoutClick = coordinator::logout
+                        onLogoutClick = { scope.launch { coordinator.logout() } },
                     )
                     is AppUiState.BusinessCreation -> BusinessCreationScreen(
                         state = currentState,
@@ -130,7 +130,7 @@ fun App() {
                         onLangChange = { lang = it },
                         onThemeChange = { theme = it },
                         onChangeBusinessClick = coordinator::openBusinessSelection,
-                        onLogoutClick = coordinator::logout
+                        onLogoutClick = { allDevices -> scope.launch { coordinator.logout(allDevices) } },
                     )
                 }
             }

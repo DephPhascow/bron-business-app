@@ -4,6 +4,8 @@ import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.ApolloResponse
 import com.dphascow.BuildKonfig
 import com.dphascow.app.graphql.AddBusinessMutation
+import com.dphascow.app.graphql.LogoutAllDevicesMutation
+import com.dphascow.app.graphql.LogoutMutation
 import com.dphascow.app.graphql.MeForAuthQuery
 import com.dphascow.app.graphql.RequireCodeMutation
 import com.dphascow.app.graphql.VerifyCodeMutation
@@ -51,4 +53,12 @@ class ApiAuthClient(
 
     suspend fun addBusiness(name: String): ApolloResponse<AddBusinessMutation.Data> =
         requester.requestMutation(AddBusinessMutation(name = name))
+
+    /** Invalidates the refresh token of this device's session. */
+    suspend fun logout(): ApolloResponse<LogoutMutation.Data> =
+        requester.requestMutation(LogoutMutation())
+
+    /** Invalidates the refresh tokens of every session this user has. */
+    suspend fun logoutAllDevices(): ApolloResponse<LogoutAllDevicesMutation.Data> =
+        requester.requestMutation(LogoutAllDevicesMutation())
 }

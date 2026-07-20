@@ -25,17 +25,13 @@ query BusinessWorkspace($businessId: Int!, $lang: String!) {
         email
         imageUrl
       }
-      specialization {
+      specializations {
         pk
         name(lang: $lang)
       }
-    }
-    services {
-      pk
-      name(lang: $lang)
-      cost
-      durations
-      isActive
+      services {
+        ...ServiceFields
+      }
     }
     galleryImages {
       pk

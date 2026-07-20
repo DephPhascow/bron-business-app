@@ -45,6 +45,9 @@
     <string name="home_phone_value">Телефон: %1$s</string>
     <string name="home_change_business">Сменить бизнес</string>
     <string name="home_logout">Выйти</string>
+    <string name="confirm_logout">Выйти из приложения?</string>
+    <string name="logout_all_devices">Выйти на всех устройствах</string>
+    <string name="confirm_logout_all_devices">Выйти на всех устройствах?</string>
     <string name="common_back">Назад</string>
     <string name="common_open">Открыть</string>
     <string name="common_add">Добавить</string>
@@ -57,6 +60,7 @@
     <string name="common_search">Поиск</string>
     <string name="action_irreversible">Это действие нельзя отменить.</string>
     <string name="confirm_delete_employee">Удалить этого сотрудника?</string>
+    <string name="confirm_delete_service">Удалить эту услугу?</string>
     <string name="confirm_cancel_booking">Отменить эту запись?</string>
     <string name="workspace_load_error">Не удалось загрузить бизнес. Проверьте соединение.</string>
     <string name="services_empty">Услуг пока нет.</string>
@@ -142,8 +146,9 @@
     <string name="employee_role_admin">Администратор</string>
     <string name="employee_role_specialist">Специалист</string>
     <string name="employee_role_label">Роль</string>
-    <string name="employee_specialisation_label">Специализация</string>
-    <string name="employee_specialisation_select">Выберите специализацию</string>
+    <string name="employee_specialisation_label">Специализации</string>
+    <string name="employee_specialisation_select">Выберите одну или несколько</string>
+    <string name="employee_specialisation_empty">Специализации недоступны</string>
     <string name="employee_active_label">Активен</string>
     <string name="employee_add_submit">Добавить сотрудника</string>
     <string name="employee_delete_action">Удалить сотрудника</string>
@@ -157,6 +162,14 @@
     <string name="employee_add_self">Добавить себя как сотрудника</string>
     <string name="employee_add_self_hint">Вы будете добавлены как сотрудник. Укажите роль и специализацию.</string>
     <string name="employee_invite_failed">Не удалось отправить код. Проверьте номер.</string>
+    <string name="employee_service_add_title">Добавить услугу</string>
+    <string name="employee_service_add_subtitle">Услуга, которую оказывает сотрудник</string>
+    <string name="employee_service_edit_title">Изменить услугу</string>
+    <string name="employee_service_edit_subtitle">Название, категория, цена и длительность.</string>
+    <string name="employee_service_name_label">Название (%1$s)</string>
+    <string name="employee_service_category_label">Категория</string>
+    <string name="employee_service_category_select">Выберите категорию</string>
+    <string name="employee_service_delete_action">Удалить услугу</string>
     <string name="services_title">Услуги</string>
     <string name="services_subtitle">Каталог услуг, цены и длительность.</string>
     <string name="services_create_title">Создать услугу</string>

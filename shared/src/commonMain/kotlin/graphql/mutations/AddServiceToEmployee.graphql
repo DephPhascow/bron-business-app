@@ -1,0 +1,10 @@
+mutation AddServiceToEmployee(
+  $businessId: Int!
+  $employeeId: Int!
+  $input: AddServiceInput!
+  $lang: String!
+) {
+  addServiceToEmployee(businessId: $businessId, employeeId: $employeeId, input: $input) {
+    ...ServiceFields
+  }
+}

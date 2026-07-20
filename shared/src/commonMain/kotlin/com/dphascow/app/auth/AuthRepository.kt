@@ -12,4 +12,10 @@ interface AuthRepository {
     suspend fun selectBusiness(businessId: String): BusinessSelectionResult
 
     suspend fun createBusiness(name: String, photo: PickedPhoto?): CreateBusinessResult
+
+    /**
+     * Ends the server-side session so the refresh token can no longer be used.
+     * [allDevices] ends every session the user has, not just this one.
+     */
+    suspend fun logout(allDevices: Boolean)
 }

@@ -1,0 +1,9 @@
+fragment ServiceFields on ServicesType {
+  pk
+  name(lang: $lang)
+  nameAll
+  cost
+  durations
+  categoryId
+  isActive
+}

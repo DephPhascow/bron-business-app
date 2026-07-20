@@ -13,7 +13,7 @@ dependencies {
 // Блок application тоже не нужен, всё задаём здесь:
 compose.desktop {
     application {
-        mainClass = "com.dphascow.desktopApp.MyClass"
+        mainClass = "com.dphascow.desktopapp.PreviewMainKt"
         // при желании:
         // nativeDistributions {
         //     targetFormats(TargetFormat.Exe, TargetFormat.Msi)

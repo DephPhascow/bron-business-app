@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Menu
@@ -76,23 +77,38 @@ internal fun PageLayout(
             .padding(T.d.paddingMain),
         verticalArrangement = Arrangement.spacedBy(T.d.lg),
     ) {
-        if (onBack != null) {
-            OutlinedButton(onClick = onBack) {
-                Text(stringResource(Res.string.common_back))
-            }
-        }
-        if (onMenu != null) {
-            IconButton(onClick = onMenu) {
-                Icon(Icons.Outlined.Menu, contentDescription = stringResource(Res.string.account_title))
-            }
-        }
-
         Column(verticalArrangement = Arrangement.spacedBy(T.d.xs)) {
-            Text(
-                text = title,
-                color = T.c.onBackground,
-                style = T.t.headingH3,
-            )
+            // Title sits on the same line as the back arrow / hamburger, so the header
+            // always reads as "<icon> <where you are>".
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(T.d.xs),
+            ) {
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(Res.string.common_back),
+                            tint = T.c.onBackground,
+                        )
+                    }
+                }
+                if (onMenu != null) {
+                    IconButton(onClick = onMenu) {
+                        Icon(
+                            Icons.Outlined.Menu,
+                            contentDescription = stringResource(Res.string.account_title),
+                            tint = T.c.onBackground,
+                        )
+                    }
+                }
+                Text(
+                    text = title,
+                    color = T.c.onBackground,
+                    style = T.t.headingH3,
+                )
+            }
             if (subtitle != null) {
                 Text(
                     text = subtitle,
@@ -181,7 +197,6 @@ fun DashboardScreen(
     state: AppUiState.Authorized,
     onOpenBusinessSettings: () -> Unit,
     onOpenEmployees: () -> Unit,
-    onOpenServices: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenOrders: () -> Unit,
     onOpenAnalytics: () -> Unit,
@@ -196,10 +211,8 @@ fun DashboardScreen(
         subtitle = state.business.name,
         onMenu = onOpenMenu,
     ) {
-        InfoCard(stringResource(Res.string.dashboard_today_title), stringResource(Res.string.dashboard_today_subtitle))
         InfoCard(stringResource(Res.string.analytics_orders_title), stringResource(Res.string.dashboard_orders_subtitle), open, onOpenOrders)
         InfoCard(stringResource(Res.string.employees_title), stringResource(Res.string.dashboard_employees_subtitle), open, onOpenEmployees)
-        InfoCard(stringResource(Res.string.services_title), stringResource(Res.string.dashboard_services_subtitle), open, onOpenServices)
         InfoCard(stringResource(Res.string.gallery_title), stringResource(Res.string.dashboard_gallery_subtitle), open, onOpenGallery)
         InfoCard(stringResource(Res.string.analytics_title), stringResource(Res.string.dashboard_analytics_subtitle), open, onOpenAnalytics)
         InfoCard(stringResource(Res.string.reviews_title), stringResource(Res.string.dashboard_reviews_subtitle), open, onOpenReviews)
@@ -208,7 +221,6 @@ fun DashboardScreen(
         if (state.canSwitchBusiness) {
             InfoCard(stringResource(Res.string.home_change_business), stringResource(Res.string.dashboard_change_business_subtitle), stringResource(Res.string.common_change), onChangeBusinessClick)
         }
-        InfoCard(stringResource(Res.string.dashboard_account_title), state.phone, stringResource(Res.string.common_open), onOpenMenu)
     }
 }
 
@@ -365,37 +377,6 @@ private fun Weekday.label(): String = stringResource(
         Weekday.SUNDAY -> Res.string.weekday_sun
     }
 )
-
-@Composable
-fun ServicesScreen(
-    workspace: BusinessWorkspace?,
-    onBack: () -> Unit,
-    onServiceClick: (String) -> Unit,
-) {
-    PageLayout(stringResource(Res.string.services_title), stringResource(Res.string.services_subtitle), onBack) {
-        val services = workspace?.services.orEmpty()
-        if (services.isEmpty()) {
-            EmptyStateCard(stringResource(Res.string.services_empty))
-        }
-        services.forEach { service ->
-            InfoCard(service.name, "${service.duration} · ${service.price}", stringResource(Res.string.common_open)) { onServiceClick(service.id) }
-        }
-    }
-}
-
-@Composable
-fun ServiceDetailsScreen(
-    workspace: BusinessWorkspace?,
-    serviceId: String,
-    onBack: () -> Unit,
-) {
-    val service = workspace?.services?.firstOrNull { it.id == serviceId }
-
-    PageLayout(service?.name ?: stringResource(Res.string.service_title_fallback), stringResource(Res.string.service_details_subtitle), onBack) {
-        InfoCard(stringResource(Res.string.service_price_title), service?.price ?: "—")
-        InfoCard(stringResource(Res.string.service_duration_title), service?.duration ?: "—")
-    }
-}
 
 @Composable
 fun GalleryScreen(

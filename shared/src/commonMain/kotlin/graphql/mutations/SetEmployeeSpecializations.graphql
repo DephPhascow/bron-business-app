@@ -1,0 +1,15 @@
+mutation SetEmployeeSpecializations(
+  $businessId: Int!
+  $employeeId: Int!
+  $specializationIds: [Int!]!
+  $lang: String!
+) {
+  setEmployeeSpecializations(
+    businessId: $businessId
+    employeeId: $employeeId
+    specializationIds: $specializationIds
+  ) {
+    pk
+    name(lang: $lang)
+  }
+}

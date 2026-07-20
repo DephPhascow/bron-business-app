@@ -20,24 +20,58 @@ interface BusinessWorkspaceRepository {
      */
     suspend fun verifyEmployeePhone(phone: String, code: String): String
 
+    /**
+     * Creates the employee and then assigns [specialisationIds] — the server takes
+     * specialisations through a separate mutation, so this is two round-trips.
+     */
     suspend fun addEmployee(
         businessId: String,
         userId: String,
         role: EmployeeRole,
-        specialisationId: String?,
+        specialisationIds: List<String>,
         isActive: Boolean,
         lang: String,
     ): BusinessEmployee
 
+    /** A `null` [specialisationIds] leaves the current specialisations untouched. */
     suspend fun updateEmployee(
+        businessId: String,
         employeeId: String,
         role: EmployeeRole?,
-        specialisationId: String?,
+        specialisationIds: List<String>?,
         isActive: Boolean?,
         lang: String,
     ): BusinessEmployee
 
-    suspend fun deleteEmployee(employeeId: String)
+    suspend fun deleteEmployee(businessId: String, employeeId: String)
+
+    suspend fun loadCategories(lang: String): List<ServiceCategory>
+
+    /** Services belong to the employee who performs them. [name] is keyed by language code. */
+    suspend fun addEmployeeService(
+        businessId: String,
+        employeeId: String,
+        name: Map<String, String>,
+        cost: Int,
+        duration: String,
+        categoryId: String?,
+        isActive: Boolean,
+        lang: String,
+    ): BusinessService
+
+    /** Every `null` argument leaves the corresponding value untouched on the server. */
+    suspend fun updateEmployeeService(
+        businessId: String,
+        serviceId: String,
+        name: Map<String, String>?,
+        cost: Int?,
+        duration: String?,
+        categoryId: String?,
+        isActive: Boolean?,
+        lang: String,
+    ): BusinessService
+
+    suspend fun deleteEmployeeService(businessId: String, serviceId: String)
 
     suspend fun cancelBooking(bookingId: String)
 

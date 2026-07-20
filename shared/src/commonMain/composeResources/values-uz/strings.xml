@@ -45,6 +45,9 @@
     <string name="home_phone_value">Telefon: %1$s</string>
     <string name="home_change_business">Biznesni almashtirish</string>
     <string name="home_logout">Chiqish</string>
+    <string name="confirm_logout">Ilovadan chiqilsinmi?</string>
+    <string name="logout_all_devices">Barcha qurilmalarda chiqish</string>
+    <string name="confirm_logout_all_devices">Barcha qurilmalarda chiqilsinmi?</string>
     <string name="common_back">Orqaga</string>
     <string name="common_open">Ochish</string>
     <string name="common_add">Qo‘shish</string>
@@ -57,6 +60,7 @@
     <string name="common_search">Qidirish</string>
     <string name="action_irreversible">Bu amalni bekor qilib bo‘lmaydi.</string>
     <string name="confirm_delete_employee">Ushbu xodim o‘chirilsinmi?</string>
+    <string name="confirm_delete_service">Ushbu xizmat o‘chirilsinmi?</string>
     <string name="confirm_cancel_booking">Ushbu yozuv bekor qilinsinmi?</string>
     <string name="workspace_load_error">Biznesni yuklab bo‘lmadi. Aloqani tekshiring.</string>
     <string name="services_empty">Hozircha xizmatlar yo‘q.</string>
@@ -142,8 +146,9 @@
     <string name="employee_role_admin">Administrator</string>
     <string name="employee_role_specialist">Mutaxassis</string>
     <string name="employee_role_label">Rol</string>
-    <string name="employee_specialisation_label">Mutaxassislik</string>
-    <string name="employee_specialisation_select">Mutaxassislikni tanlang</string>
+    <string name="employee_specialisation_label">Mutaxassisliklar</string>
+    <string name="employee_specialisation_select">Bir yoki bir nechtasini tanlang</string>
+    <string name="employee_specialisation_empty">Mutaxassisliklar mavjud emas</string>
     <string name="employee_active_label">Faol</string>
     <string name="employee_add_submit">Xodim qo‘shish</string>
     <string name="employee_delete_action">Xodimni o‘chirish</string>
@@ -157,6 +162,14 @@
     <string name="employee_add_self">O‘zimni xodim sifatida qo‘shish</string>
     <string name="employee_add_self_hint">Siz xodim sifatida qo‘shilasiz. Rol va mutaxassislikni tanlang.</string>
     <string name="employee_invite_failed">Kod yuborilmadi. Raqamni tekshiring.</string>
+    <string name="employee_service_add_title">Xizmat qo‘shish</string>
+    <string name="employee_service_add_subtitle">Xodim ko‘rsatadigan xizmat</string>
+    <string name="employee_service_edit_title">Xizmatni tahrirlash</string>
+    <string name="employee_service_edit_subtitle">Nomi, turkumi, narxi va davomiyligi.</string>
+    <string name="employee_service_name_label">Nomi (%1$s)</string>
+    <string name="employee_service_category_label">Turkum</string>
+    <string name="employee_service_category_select">Turkumni tanlang</string>
+    <string name="employee_service_delete_action">Xizmatni o‘chirish</string>
     <string name="services_title">Xizmatlar</string>
     <string name="services_subtitle">Xizmatlar katalogi, narxlar va davomiylik.</string>
     <string name="services_create_title">Xizmat yaratish</string>

@@ -45,6 +45,9 @@
     <string name="home_phone_value">Phone: %1$s</string>
     <string name="home_change_business">Change business</string>
     <string name="home_logout">Log out</string>
+    <string name="confirm_logout">Log out of the app?</string>
+    <string name="logout_all_devices">Log out everywhere</string>
+    <string name="confirm_logout_all_devices">Log out on all devices?</string>
 
     <string name="common_back">Back</string>
     <string name="common_open">Open</string>
@@ -58,6 +61,7 @@
     <string name="common_search">Search</string>
     <string name="action_irreversible">This action cannot be undone.</string>
     <string name="confirm_delete_employee">Remove this employee?</string>
+    <string name="confirm_delete_service">Remove this service?</string>
     <string name="confirm_cancel_booking">Cancel this booking?</string>
     <string name="workspace_load_error">Could not load the business. Check your connection.</string>
     <string name="services_empty">No services yet.</string>
@@ -143,8 +147,9 @@
     <string name="employee_role_admin">Administrator</string>
     <string name="employee_role_specialist">Specialist</string>
     <string name="employee_role_label">Role</string>
-    <string name="employee_specialisation_label">Specialisation</string>
-    <string name="employee_specialisation_select">Choose specialisation</string>
+    <string name="employee_specialisation_label">Specialisations</string>
+    <string name="employee_specialisation_select">Choose one or more</string>
+    <string name="employee_specialisation_empty">No specialisations available</string>
     <string name="employee_active_label">Active</string>
     <string name="employee_add_submit">Add employee</string>
     <string name="employee_delete_action">Remove employee</string>
@@ -158,6 +163,14 @@
     <string name="employee_add_self">Add myself as an employee</string>
     <string name="employee_add_self_hint">You will be added as an employee. Set the role and specialisation.</string>
     <string name="employee_invite_failed">Could not send the code. Check the number.</string>
+    <string name="employee_service_add_title">Add a service</string>
+    <string name="employee_service_add_subtitle">A service this employee performs</string>
+    <string name="employee_service_edit_title">Edit service</string>
+    <string name="employee_service_edit_subtitle">Name, category, price and duration.</string>
+    <string name="employee_service_name_label">Name (%1$s)</string>
+    <string name="employee_service_category_label">Category</string>
+    <string name="employee_service_category_select">Choose a category</string>
+    <string name="employee_service_delete_action">Delete service</string>
     <string name="services_title">Services</string>
     <string name="services_subtitle">Service catalog, prices and duration.</string>
     <string name="services_create_title">Create service</string>

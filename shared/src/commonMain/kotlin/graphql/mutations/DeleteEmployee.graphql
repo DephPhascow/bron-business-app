@@ -1,0 +1,5 @@
+mutation DeleteEmployee($businessId: Int!, $employeeId: Int!) {
+  deleteEmployee(businessId: $businessId, employeeId: $employeeId) {
+    pk
+  }
+}

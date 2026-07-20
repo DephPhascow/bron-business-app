@@ -3,7 +3,7 @@ query Employees($businessId: Int!, $lang: String!) {
     pk
     role
     isActive
-    specialization {
+    specializations {
       pk
       name(lang: $lang)
     }
