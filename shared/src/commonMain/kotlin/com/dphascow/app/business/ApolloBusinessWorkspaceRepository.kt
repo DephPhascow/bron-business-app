@@ -57,6 +57,14 @@ class ApolloBusinessWorkspaceRepository(
             phone = business.contactPhone,
             address = business.address,
             logoUrl = business.logoUrl,
+            websiteUrl = business.websiteUrl,
+            offersUrl = business.offersUrl,
+            addressByLang = business.addressAll.toLangMap(),
+            descriptionByLang = business.descriptionAll.toLangMap(),
+            latitude = business.latitude,
+            longitude = business.longitude,
+            taxpayerId = business.taxpayerIdentificationNumber,
+            personalId = business.personalIdentificationNumber,
             rating = business.middleStars,
             reviewsCount = business.reviewsCount,
             reviews = business.reviews.map { review ->
@@ -428,6 +436,14 @@ class ApolloBusinessWorkspaceRepository(
         businessId: String,
         name: String?,
         contactPhone: String?,
+        websiteUrl: String?,
+        offersUrl: String?,
+        addressByLang: Map<String, String>?,
+        descriptionByLang: Map<String, String>?,
+        latitude: Double?,
+        longitude: Double?,
+        taxpayerId: String?,
+        personalId: String?,
         logoPhoto: PickedPhoto?,
         workTime: WeeklySchedule,
         breakTime: WeeklySchedule,
@@ -437,6 +453,17 @@ class ApolloBusinessWorkspaceRepository(
         val input = UpdateBusiness(
             name = Optional.presentIfNotNull(name?.trim()?.ifBlank { null }),
             contactPhone = Optional.presentIfNotNull(contactPhone?.trim()?.ifBlank { null }),
+            websiteUrl = Optional.presentIfNotNull(websiteUrl?.trim()?.ifBlank { null }),
+            offersUrl = Optional.presentIfNotNull(offersUrl?.trim()?.ifBlank { null }),
+            // Localised fields go over as the JSON scalar, i.e. {"ru": …, "uz": …, "en": …}.
+            // Blank translations are dropped so an untouched language is not overwritten
+            // with an empty string; an all-blank map omits the field entirely.
+            address = Optional.presentIfNotNull(addressByLang?.dropBlank()),
+            description = Optional.presentIfNotNull(descriptionByLang?.dropBlank()),
+            latitude = Optional.presentIfNotNull(latitude),
+            longitude = Optional.presentIfNotNull(longitude),
+            taxpayerIdentificationNumber = Optional.presentIfNotNull(taxpayerId?.trim()?.ifBlank { null }),
+            personalIdentificationNumber = Optional.presentIfNotNull(personalId?.trim()?.ifBlank { null }),
             logoUrl = Optional.presentIfNotNull(logoUrl),
             workTime = workTime.toInput(),
             breakTime = breakTime.toInput(),
@@ -491,20 +518,29 @@ class ApolloBusinessWorkspaceRepository(
     private fun ServiceFields.toDomain(): BusinessService = BusinessService(
         id = pk.toString(),
         name = name.orEmpty().ifBlank { "#$pk" },
-        // `nameAll` is the JSON scalar — a language-keyed object we only trust to hold strings.
-        nameByLang = (nameAll as? Map<*, *>)
-            .orEmpty()
-            .mapNotNull { (key, value) ->
-                val code = key as? String ?: return@mapNotNull null
-                val text = value as? String ?: return@mapNotNull null
-                code to text
-            }
-            .toMap(),
+        nameByLang = nameAll.toLangMap(),
         cost = cost,
         duration = durations,
         categoryId = categoryId?.toString(),
         isActive = isActive,
     )
+
+    /** Keeps only filled-in translations; returns null when nothing was entered at all. */
+    private fun Map<String, String>.dropBlank(): Map<String, String>? =
+        mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }.ifEmpty { null }
+
+    /**
+     * The API's localised text fields arrive as the `JSON` scalar — a language-keyed
+     * object we only trust to hold strings, so anything else is dropped.
+     */
+    private fun Any?.toLangMap(): Map<String, String> = (this as? Map<*, *>)
+        .orEmpty()
+        .mapNotNull { (key, value) ->
+            val code = key as? String ?: return@mapNotNull null
+            val text = value as? String ?: return@mapNotNull null
+            code to text
+        }
+        .toMap()
 
     /** Specialisation names are localised and may be missing for the requested language. */
     private fun specialisationName(pk: Int, name: String?): String = name.orEmpty().ifBlank { "#$pk" }

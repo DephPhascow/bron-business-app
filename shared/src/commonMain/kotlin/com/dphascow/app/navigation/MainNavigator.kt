@@ -10,6 +10,9 @@ class MainNavigator(
     val currentRoute: AppRoute
         get() = backStack.last()
 
+    val canGoBack: Boolean
+        get() = backStack.size > 1
+
     fun open(route: AppRoute) {
         backStack += route
     }

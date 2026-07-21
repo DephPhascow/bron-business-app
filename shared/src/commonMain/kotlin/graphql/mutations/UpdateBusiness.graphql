@@ -6,6 +6,10 @@ mutation UpdateBusiness($pk: Int!, $input: UpdateBusiness!) {
     longitude
     taxpayerIdentificationNumber
     personalIdentificationNumber
+    websiteUrl
+    offersUrl
+    addressAll
+    descriptionAll
     logoUrl
     contactPhone
     workTime { ...WorkTimeFields }

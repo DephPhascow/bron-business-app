@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -77,17 +78,20 @@ fun ChatListScreen(
     }
 
     var query by remember { mutableStateOf("") }
-    PageLayout(stringResource(Res.string.chat_title), stringResource(Res.string.chat_subtitle), onBack, onMenu) {
-        SearchField(query) { query = it }
-        val filtered = chats.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
+    val filtered = remember(chats, query) {
+        chats.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
+    }
+    val openLabel = stringResource(Res.string.common_open)
+    LazyPageLayout(stringResource(Res.string.chat_title), stringResource(Res.string.chat_subtitle), onBack, onMenu) {
+        item { SearchField(query) { query = it } }
         when {
-            loading -> CircularProgressIndicator(color = T.c.primary)
-            error != null -> EmptyStateCard(error ?: "")
-            filtered.isEmpty() -> EmptyStateCard(stringResource(Res.string.chat_empty))
-            else -> filtered.forEach { chat ->
+            loading -> item { CircularProgressIndicator(color = T.c.primary) }
+            error != null -> item { EmptyStateCard(error ?: "") }
+            filtered.isEmpty() -> item { EmptyStateCard(stringResource(Res.string.chat_empty)) }
+            else -> items(filtered, key = { it.id }) { chat ->
                 val subtitle = chat.lastMessage.orEmpty().ifBlank { " " }
                 val title = if (chat.unread > 0) "${chat.name} (${chat.unread})" else chat.name
-                InfoCard(title, subtitle, stringResource(Res.string.common_open)) { onOpenChat(chat.id) }
+                InfoCard(title, subtitle, openLabel) { onOpenChat(chat.id) }
             }
         }
     }

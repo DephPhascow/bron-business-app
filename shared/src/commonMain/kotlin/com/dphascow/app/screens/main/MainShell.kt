@@ -31,6 +31,7 @@ import com.dphascow.app.auth.AppUiState
 import com.dphascow.app.business.BusinessWorkspace
 import com.dphascow.app.business.BusinessWorkspaceRepository
 import com.dphascow.app.chat.ChatRepository
+import com.dphascow.app.expects.BackPressHandler
 import com.dphascow.app.navigation.AppRoute
 import com.dphascow.app.navigation.MainNavigator
 import com.dphascow.app.profile.ProfileRepository
@@ -95,6 +96,17 @@ fun MainShell(
     }
 
     val route = navigator.currentRoute
+
+    // System back / back gesture: close the drawer first, otherwise pop the stack.
+    // Declared outside the drawer so the drawer's own handler wins while it is open.
+    BackPressHandler(enabled = drawerState.isOpen || navigator.canGoBack) {
+        if (drawerState.isOpen) {
+            scope.launch { drawerState.close() }
+        } else {
+            navigator.back()
+        }
+    }
+
     // Content routes need the workspace; dashboard, account and chat screens don't.
     val needsWorkspace = route != AppRoute.Dashboard &&
         route != AppRoute.Account &&
@@ -115,7 +127,9 @@ fun MainShell(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = route == AppRoute.Dashboard || drawerState.isOpen,
+        // Edge-drag to open would swallow the system back gesture, so the drawer only
+        // opens from the hamburger; the swipe stays available to close it.
+        gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             AccountDrawer(
                 onOpenAccount = {
@@ -184,6 +198,7 @@ fun MainShell(
                 chatRepository = chatRepository,
                 businessId = state.business.id,
                 lang = lang,
+                currentUserId = currentUserId,
                 onBack = { navigator.back() },
                 onEditClick = { navigator.open(AppRoute.EmployeeEdit(route.employeeId)) },
                 onAddServiceClick = { navigator.open(AppRoute.EmployeeServiceEdit(route.employeeId)) },

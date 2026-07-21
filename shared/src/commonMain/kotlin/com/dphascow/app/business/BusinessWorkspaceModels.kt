@@ -6,6 +6,17 @@ data class BusinessWorkspace(
     val phone: String?,
     val address: String?,
     val logoUrl: String?,
+    val websiteUrl: String?,
+    val offersUrl: String?,
+    /** All translations keyed by language code — what the edit form works with. */
+    val addressByLang: Map<String, String>,
+    val descriptionByLang: Map<String, String>,
+    val latitude: Double?,
+    val longitude: Double?,
+    /** ИНН */
+    val taxpayerId: String?,
+    /** ПИНФЛ */
+    val personalId: String?,
     val rating: Double,
     val reviewsCount: Int,
     val reviews: List<BusinessReview>,
@@ -90,8 +101,11 @@ data class BusinessService(
     val isActive: Boolean,
 )
 
+/** Language codes any localised text field can be entered in. */
+val I18N_LANGS = listOf("ru", "uz", "en")
+
 /** Language codes a service name can be entered in. */
-val SERVICE_NAME_LANGS = listOf("ru", "uz", "en")
+val SERVICE_NAME_LANGS = I18N_LANGS
 
 data class ServiceCategory(
     val id: String,

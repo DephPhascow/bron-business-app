@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
@@ -60,20 +61,26 @@ fun EmployeesScreen(
     onAddEmployeeClick: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    PageLayout(stringResource(Res.string.employees_title), stringResource(Res.string.employees_subtitle), onBack) {
-        AccentPanel(
-            stringResource(Res.string.employees_add_title),
-            stringResource(Res.string.employees_add_subtitle),
-            stringResource(Res.string.common_add),
-            onAddEmployeeClick,
-        )
-        SearchField(query) { query = it }
+    val employees = remember(workspace, query) {
         workspace?.employees.orEmpty()
             .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
-            .forEach { employee ->
-            val dismissed = stringResource(Res.string.employee_dismissed_label).takeIf { !employee.isActive }
+    }
+    val dismissedLabel = stringResource(Res.string.employee_dismissed_label)
+    val openLabel = stringResource(Res.string.common_open)
+    LazyPageLayout(stringResource(Res.string.employees_title), stringResource(Res.string.employees_subtitle), onBack) {
+        item {
+            AccentPanel(
+                stringResource(Res.string.employees_add_title),
+                stringResource(Res.string.employees_add_subtitle),
+                stringResource(Res.string.common_add),
+                onAddEmployeeClick,
+            )
+        }
+        item { SearchField(query) { query = it } }
+        items(employees, key = { it.id }) { employee ->
+            val dismissed = dismissedLabel.takeIf { !employee.isActive }
             val subtitle = listOfNotNull(employee.role.label(), employee.phone, dismissed).joinToString(" · ")
-            InfoCard(employee.name, subtitle, stringResource(Res.string.common_open)) { onEmployeeClick(employee.id) }
+            InfoCard(employee.name, subtitle, openLabel) { onEmployeeClick(employee.id) }
         }
     }
 }
@@ -85,6 +92,7 @@ fun EmployeeDetailsScreen(
     chatRepository: com.dphascow.app.chat.ChatRepository?,
     businessId: String,
     lang: String,
+    currentUserId: String?,
     onBack: () -> Unit,
     onEditClick: () -> Unit,
     onAddServiceClick: () -> Unit,
@@ -145,21 +153,24 @@ fun EmployeeDetailsScreen(
 
         error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
-        AppButton(
-            text = stringResource(Res.string.employee_message_action),
-            loading = messaging,
-            enabled = !deleting && chatRepository != null,
-            onClick = {
-                val chat = chatRepository ?: return@AppButton
-                messaging = true
-                error = null
-                scope.launch {
-                    runCatching { chat.startChatWith(employee.userId) }
-                        .onSuccess { chatId -> messaging = false; onOpenConversation(chatId) }
-                        .onFailure { messaging = false; error = it.message }
-                }
-            },
-        )
+        // No point offering a chat with yourself when you are on the roster too.
+        if (employee.userId != currentUserId) {
+            AppButton(
+                text = stringResource(Res.string.employee_message_action),
+                loading = messaging,
+                enabled = !deleting && chatRepository != null,
+                onClick = {
+                    val chat = chatRepository ?: return@AppButton
+                    messaging = true
+                    error = null
+                    scope.launch {
+                        runCatching { chat.startChatWith(employee.userId) }
+                            .onSuccess { chatId -> messaging = false; onOpenConversation(chatId) }
+                            .onFailure { messaging = false; error = it.message }
+                    }
+                },
+            )
+        }
 
         if (employee.isActive) {
             AppOutlinedButton(

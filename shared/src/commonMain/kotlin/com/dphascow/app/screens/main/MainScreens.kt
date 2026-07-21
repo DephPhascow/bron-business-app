@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -51,6 +54,7 @@ import com.dphascow.app.business.BookingStatus
 import com.dphascow.app.business.BusinessAnalytics
 import com.dphascow.app.business.BusinessWorkspace
 import com.dphascow.app.business.DayInterval
+import com.dphascow.app.business.I18N_LANGS
 import com.dphascow.app.business.WeeklySchedule
 import com.dphascow.app.business.Weekday
 import com.dphascow.app.business.serviceSummary
@@ -82,52 +86,98 @@ internal fun PageLayout(
             // The client app draws its pages straight on `dark1`, not on the tinted
             // `background` — cards then read as content, not as floating panels.
             .background(T.c.dark1)
-            .verticalScroll(rememberScrollState())
             .padding(T.d.paddingMain),
         verticalArrangement = Arrangement.spacedBy(T.d.lg),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(T.d.xs)) {
-            // Title sits on the same line as the back arrow / hamburger, so the header
-            // always reads as "<icon> <where you are>".
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(T.d.xs),
-            ) {
-                if (onBack != null) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(Res.string.common_back),
-                            tint = T.c.dark10,
-                        )
-                    }
-                }
-                if (onMenu != null) {
-                    IconButton(onClick = onMenu) {
-                        Icon(
-                            Icons.Outlined.Menu,
-                            contentDescription = stringResource(Res.string.account_title),
-                            tint = T.c.dark10,
-                        )
-                    }
-                }
-                Text(
-                    text = title,
-                    color = T.c.dark10,
-                    style = T.t.headingH3,
-                )
-            }
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    color = T.c.dark5,
-                    style = T.t.t3,
-                )
-            }
+        // The header stays outside the scroll container. Inside it, the back arrow
+        // belongs to the scroll gesture, so any finger drift past touch slop is read
+        // as the start of a scroll and the tap is dropped without any visible feedback.
+        PageHeader(title, subtitle, onBack, onMenu)
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(T.d.lg),
+        ) {
+            content()
         }
+    }
+}
 
-        content()
+/**
+ * Same chrome as [PageLayout], but the body is a lazy list. Screens that render an
+ * unbounded collection must use this one — a plain scrolling Column composes every row
+ * up front, which stalls the frame that the tap was supposed to produce.
+ */
+@Composable
+internal fun LazyPageLayout(
+    title: String,
+    subtitle: String? = null,
+    onBack: (() -> Unit)? = null,
+    onMenu: (() -> Unit)? = null,
+    content: LazyListScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(T.c.dark1)
+            .padding(T.d.paddingMain),
+        verticalArrangement = Arrangement.spacedBy(T.d.lg),
+    ) {
+        // Pinned, for the same reason as in [PageLayout].
+        PageHeader(title, subtitle, onBack, onMenu)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(T.d.lg),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun PageHeader(
+    title: String,
+    subtitle: String?,
+    onBack: (() -> Unit)?,
+    onMenu: (() -> Unit)?,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(T.d.xs)) {
+        // Title sits on the same line as the back arrow / hamburger, so the header
+        // always reads as "<icon> <where you are>".
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(T.d.xs),
+        ) {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(Res.string.common_back),
+                        tint = T.c.dark10,
+                    )
+                }
+            }
+            if (onMenu != null) {
+                IconButton(onClick = onMenu) {
+                    Icon(
+                        Icons.Outlined.Menu,
+                        contentDescription = stringResource(Res.string.account_title),
+                        tint = T.c.dark10,
+                    )
+                }
+            }
+            Text(
+                text = title,
+                color = T.c.dark10,
+                style = T.t.headingH3,
+            )
+        }
+        if (subtitle != null) {
+            Text(
+                text = subtitle,
+                color = T.c.dark5,
+                style = T.t.t3,
+            )
+        }
     }
 }
 
@@ -212,12 +262,26 @@ fun BusinessSettingsScreen(
     val scope = rememberCoroutineScope()
     var name by remember(workspace?.name) { mutableStateOf(workspace?.name.orEmpty()) }
     var phone by remember(workspace?.phone) { mutableStateOf(workspace?.phone.orEmpty()) }
+    var website by remember(workspace?.websiteUrl) { mutableStateOf(workspace?.websiteUrl.orEmpty()) }
+    var offers by remember(workspace?.offersUrl) { mutableStateOf(workspace?.offersUrl.orEmpty()) }
+    // One field per language: the API stores these as language-keyed maps.
+    var addresses by remember(workspace?.addressByLang) {
+        mutableStateOf(I18N_LANGS.associateWith { code -> workspace?.addressByLang?.get(code).orEmpty() })
+    }
+    var descriptions by remember(workspace?.descriptionByLang) {
+        mutableStateOf(I18N_LANGS.associateWith { code -> workspace?.descriptionByLang?.get(code).orEmpty() })
+    }
+    var taxpayerId by remember(workspace?.taxpayerId) { mutableStateOf(workspace?.taxpayerId.orEmpty()) }
+    var personalId by remember(workspace?.personalId) { mutableStateOf(workspace?.personalId.orEmpty()) }
+    var latitude by remember(workspace?.latitude) { mutableStateOf(workspace?.latitude?.toString().orEmpty()) }
+    var longitude by remember(workspace?.longitude) { mutableStateOf(workspace?.longitude?.toString().orEmpty()) }
     var logo by remember(workspace?.id) { mutableStateOf<PickedPhoto?>(null) }
     var workTime by remember(workspace?.id) { mutableStateOf(workspace?.workTime ?: WeeklySchedule()) }
     var breakTime by remember(workspace?.id) { mutableStateOf(workspace?.breakTime ?: WeeklySchedule()) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val logoPicker = rememberPhotoPickerLauncher(onPhotoPicked = { logo = it })
+    val badCoordinates = stringResource(Res.string.business_settings_coordinates_invalid)
 
     PageLayout(
         title = stringResource(Res.string.business_settings_title),
@@ -232,6 +296,91 @@ fun BusinessSettingsScreen(
             enabled = !saving,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
         )
+        AppTextField(
+            website,
+            { website = it },
+            stringResource(Res.string.business_settings_website_label),
+            enabled = !saving,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        )
+        AppTextField(
+            offers,
+            { offers = it },
+            stringResource(Res.string.business_settings_offers_label),
+            enabled = !saving,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        )
+
+        Text(
+            stringResource(Res.string.business_settings_address_title),
+            style = T.t.t1,
+            color = T.c.dark10,
+            modifier = Modifier.padding(top = T.d.sm),
+        )
+        I18N_LANGS.forEach { code ->
+            AppTextField(
+                value = addresses[code].orEmpty(),
+                onValueChange = { addresses = addresses + (code to it) },
+                label = stringResource(Res.string.business_settings_address_label, code.uppercase()),
+                enabled = !saving,
+            )
+        }
+
+        Text(
+            stringResource(Res.string.business_settings_description_title),
+            style = T.t.t1,
+            color = T.c.dark10,
+            modifier = Modifier.padding(top = T.d.sm),
+        )
+        I18N_LANGS.forEach { code ->
+            AppTextField(
+                value = descriptions[code].orEmpty(),
+                onValueChange = { descriptions = descriptions + (code to it) },
+                label = stringResource(Res.string.business_settings_description_label, code.uppercase()),
+                enabled = !saving,
+                singleLine = false,
+            )
+        }
+
+        AppTextField(
+            taxpayerId,
+            { taxpayerId = it },
+            stringResource(Res.string.business_settings_inn_label),
+            enabled = !saving,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        AppTextField(
+            personalId,
+            { personalId = it },
+            stringResource(Res.string.business_settings_pinfl_label),
+            enabled = !saving,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+
+        Text(
+            stringResource(Res.string.business_settings_coordinates_title),
+            style = T.t.t1,
+            color = T.c.dark10,
+            modifier = Modifier.padding(top = T.d.sm),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(T.d.md)) {
+            AppTextField(
+                latitude,
+                { latitude = it },
+                stringResource(Res.string.business_settings_latitude_label),
+                enabled = !saving,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+            )
+            AppTextField(
+                longitude,
+                { longitude = it },
+                stringResource(Res.string.business_settings_longitude_label),
+                enabled = !saving,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+            )
+        }
 
         workspace?.logoUrl?.takeIf { logo == null }?.let { url ->
             NetworkImage(
@@ -267,6 +416,14 @@ fun BusinessSettingsScreen(
             onClick = {
                 val id = workspace?.id ?: return@AppButton
                 if (repository == null) return@AppButton
+                // A blank coordinate means "leave it alone"; a malformed one is a typo
+                // worth reporting rather than silently dropping.
+                val lat = latitude.trim().ifBlank { null }?.toDoubleOrNull()
+                val lon = longitude.trim().ifBlank { null }?.toDoubleOrNull()
+                if (latitude.isNotBlank() && lat == null || longitude.isNotBlank() && lon == null) {
+                    error = badCoordinates
+                    return@AppButton
+                }
                 saving = true
                 error = null
                 scope.launch {
@@ -275,6 +432,14 @@ fun BusinessSettingsScreen(
                             businessId = id,
                             name = name,
                             contactPhone = phone,
+                            websiteUrl = website,
+                            offersUrl = offers,
+                            addressByLang = addresses,
+                            descriptionByLang = descriptions,
+                            latitude = lat,
+                            longitude = lon,
+                            taxpayerId = taxpayerId,
+                            personalId = personalId,
                             logoPhoto = logo,
                             workTime = workTime,
                             breakTime = breakTime,
@@ -480,26 +645,36 @@ fun OrdersScreen(
     onBookClientClick: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    PageLayout(stringResource(Res.string.orders_title), stringResource(Res.string.orders_subtitle), onBack) {
-        AccentPanel(
-            stringResource(Res.string.book_client_title),
-            stringResource(Res.string.book_client_subtitle),
-            stringResource(Res.string.common_add),
-            onBookClientClick,
-        )
-        SearchField(query) { query = it }
-        val orders = workspace?.orders.orEmpty()
+    // Looking the employee up per row turned the list into an O(orders × employees)
+    // scan on every recomposition.
+    val employeeNames = remember(workspace) {
+        workspace?.employees.orEmpty().associate { it.id to it.name }
+    }
+    val orders = remember(workspace, query) {
+        workspace?.orders.orEmpty()
             .sortedByDescending { it.dateTime }
             .filter { query.isBlank() || it.clientName.contains(query, ignoreCase = true) || it.serviceSummary.contains(query, ignoreCase = true) }
-        if (orders.isEmpty()) {
-            EmptyStateCard(stringResource(Res.string.orders_empty))
+    }
+    val openLabel = stringResource(Res.string.common_open)
+    LazyPageLayout(stringResource(Res.string.orders_title), stringResource(Res.string.orders_subtitle), onBack) {
+        item {
+            AccentPanel(
+                stringResource(Res.string.book_client_title),
+                stringResource(Res.string.book_client_subtitle),
+                stringResource(Res.string.common_add),
+                onBookClientClick,
+            )
         }
-        orders.forEach { order ->
-            val employeeName = workspace?.employees?.firstOrNull { it.id == order.employeeId }?.name.orEmpty()
+        item { SearchField(query) { query = it } }
+        if (orders.isEmpty()) {
+            item { EmptyStateCard(stringResource(Res.string.orders_empty)) }
+        }
+        items(orders, key = { it.id }) { order ->
+            val employeeName = employeeNames[order.employeeId].orEmpty()
             InfoCard(
                 title = "${order.clientName} · ${order.dateTime}",
                 subtitle = listOf(order.serviceSummary, employeeName, order.status.label()).filter { it.isNotBlank() }.joinToString(" · "),
-                actionText = stringResource(Res.string.common_open),
+                actionText = openLabel,
                 onClick = { onOrderClick(order.id) },
             )
         }

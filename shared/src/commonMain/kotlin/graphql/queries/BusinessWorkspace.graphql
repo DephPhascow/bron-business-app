@@ -4,7 +4,15 @@ query BusinessWorkspace($businessId: Int!, $lang: String!) {
     name
     logoUrl
     contactPhone
+    websiteUrl
+    offersUrl
+    latitude
+    longitude
+    taxpayerIdentificationNumber
+    personalIdentificationNumber
     address(lang: $lang)
+    addressAll
+    descriptionAll
     workTime { ...WorkTimeFields }
     breakTime { ...WorkTimeFields }
     middleStars
