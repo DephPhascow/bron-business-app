@@ -44,6 +44,8 @@ fun MyScheduleScreen(
     businessId: String,
     lang: String,
     onBack: () -> Unit,
+    /** Bumped by the shell on every live new booking; the list then reloads in place. */
+    bookingsSignal: Int = 0,
 ) {
     val scope = rememberCoroutineScope()
     var bookings by remember(businessId) { mutableStateOf<List<EmployeeBooking>>(emptyList()) }
@@ -51,18 +53,32 @@ fun MyScheduleScreen(
     var error by remember(businessId) { mutableStateOf<String?>(null) }
     var busyId by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember(businessId) { mutableStateOf(0) }
+    var refreshing by remember(businessId) { mutableStateOf(false) }
 
     LaunchedEffect(repository, businessId, lang, reloadKey) {
-        loading = true
+        // A pull keeps the current bookings on screen until the new ones land.
+        if (!refreshing) loading = true
         error = null
         val repo = repository
         if (repo == null) {
             loading = false
+            refreshing = false
             return@LaunchedEffect
         }
         runCatching { repo.loadMyBookings(businessId = businessId, lang = lang) }
-            .onSuccess { bookings = it; loading = false }
-            .onFailure { error = it.message; loading = false }
+            .onSuccess { bookings = it }
+            .onFailure { error = it.message }
+        loading = false
+        refreshing = false
+    }
+
+    // Opening the screen already loads; only bumps that arrive while it is open reload.
+    val initialSignal = remember { bookingsSignal }
+    LaunchedEffect(bookingsSignal) {
+        if (bookingsSignal == initialSignal) return@LaunchedEffect
+        val repo = repository ?: return@LaunchedEffect
+        runCatching { repo.loadMyBookings(businessId = businessId, lang = lang) }
+            .onSuccess { bookings = it }
     }
 
     fun mark(bookingId: String, action: suspend () -> Unit) {
@@ -75,7 +91,13 @@ fun MyScheduleScreen(
         }
     }
 
-    PageLayout(stringResource(Res.string.schedule_title), stringResource(Res.string.schedule_subtitle), onBack) {
+    PageLayout(
+        stringResource(Res.string.schedule_title),
+        stringResource(Res.string.schedule_subtitle),
+        onBack,
+        refreshing = refreshing,
+        onRefresh = { refreshing = true; reloadKey++ },
+    ) {
         error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
 
         if (loading) {

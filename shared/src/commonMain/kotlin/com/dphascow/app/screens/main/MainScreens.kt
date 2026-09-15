@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +36,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,6 +82,8 @@ internal fun PageLayout(
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     onMenu: (() -> Unit)? = null,
+    refreshing: Boolean = false,
+    onRefresh: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -93,11 +99,13 @@ internal fun PageLayout(
         // belongs to the scroll gesture, so any finger drift past touch slop is read
         // as the start of a scroll and the tap is dropped without any visible feedback.
         PageHeader(title, subtitle, onBack, onMenu)
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(T.d.lg),
-        ) {
-            content()
+        RefreshContainer(refreshing, onRefresh) {
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(T.d.lg),
+            ) {
+                content()
+            }
         }
     }
 }
@@ -113,6 +121,8 @@ internal fun LazyPageLayout(
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     onMenu: (() -> Unit)? = null,
+    refreshing: Boolean = false,
+    onRefresh: (() -> Unit)? = null,
     content: LazyListScope.() -> Unit,
 ) {
     Column(
@@ -124,11 +134,49 @@ internal fun LazyPageLayout(
     ) {
         // Pinned, for the same reason as in [PageLayout].
         PageHeader(title, subtitle, onBack, onMenu)
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(T.d.lg),
-            content = content,
-        )
+        RefreshContainer(refreshing, onRefresh) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(T.d.lg),
+                content = content,
+            )
+        }
+    }
+}
+
+/**
+ * Pull-to-refresh around a page body; without [onRefresh] the body is drawn as is.
+ * The pull starts from the body's own scroll, so it only reaches past the pinned header.
+ * [refreshing] should stay true until the reload lands, or the spinner snaps away early.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RefreshContainer(
+    refreshing: Boolean,
+    onRefresh: (() -> Unit)?,
+    content: @Composable () -> Unit,
+) {
+    if (onRefresh == null) {
+        content()
+        return
+    }
+    val state = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+        state = state,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = state,
+                isRefreshing = refreshing,
+                modifier = Modifier.align(Alignment.TopCenter),
+                containerColor = T.c.graniteGreen7,
+                color = T.c.dark1,
+            )
+        },
+    ) {
+        content()
     }
 }
 
@@ -531,13 +579,15 @@ fun GalleryScreen(
     onBack: () -> Unit,
     onUploadClick: () -> Unit,
     onChanged: () -> Unit,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var deletingId by remember { mutableStateOf<String?>(null) }
     var confirmDeleteId by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    PageLayout(stringResource(Res.string.gallery_title), stringResource(Res.string.gallery_subtitle), onBack) {
+    PageLayout(stringResource(Res.string.gallery_title), stringResource(Res.string.gallery_subtitle), onBack, refreshing = refreshing, onRefresh = onRefresh) {
         AccentPanel(stringResource(Res.string.gallery_upload_title_card), stringResource(Res.string.gallery_upload_subtitle_card), stringResource(Res.string.common_upload), onUploadClick)
         error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
         val gallery = workspace?.gallery.orEmpty()
@@ -643,6 +693,8 @@ fun OrdersScreen(
     onBack: () -> Unit,
     onOrderClick: (String) -> Unit,
     onBookClientClick: () -> Unit,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     // Looking the employee up per row turned the list into an O(orders × employees)
@@ -656,7 +708,7 @@ fun OrdersScreen(
             .filter { query.isBlank() || it.clientName.contains(query, ignoreCase = true) || it.serviceSummary.contains(query, ignoreCase = true) }
     }
     val openLabel = stringResource(Res.string.common_open)
-    LazyPageLayout(stringResource(Res.string.orders_title), stringResource(Res.string.orders_subtitle), onBack) {
+    LazyPageLayout(stringResource(Res.string.orders_title), stringResource(Res.string.orders_subtitle), onBack, refreshing = refreshing, onRefresh = onRefresh) {
         item {
             AccentPanel(
                 stringResource(Res.string.book_client_title),
@@ -700,6 +752,8 @@ fun OrderDetailsScreen(
     onBack: () -> Unit,
     onChanged: () -> Unit,
     onOpenConversation: (String) -> Unit,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
@@ -722,7 +776,7 @@ fun OrderDetailsScreen(
         }
     }
 
-    PageLayout(stringResource(Res.string.order_title), apiOrder?.clientName ?: stringResource(Res.string.order_details_subtitle), onBack) {
+    PageLayout(stringResource(Res.string.order_title), apiOrder?.clientName ?: stringResource(Res.string.order_details_subtitle), onBack, refreshing = refreshing, onRefresh = onRefresh) {
         InfoCard(stringResource(Res.string.order_client_title), apiOrder?.clientName ?: "—")
         InfoCard(stringResource(Res.string.order_service_title), apiOrder?.serviceSummary ?: "—")
         apiOrder?.let { InfoCard(stringResource(Res.string.order_total_title), it.total.toString()) }
@@ -815,21 +869,33 @@ fun AnalyticsScreen(
     var analytics by remember(businessId) { mutableStateOf<BusinessAnalytics?>(null) }
     var loading by remember(businessId) { mutableStateOf(true) }
     var error by remember(businessId) { mutableStateOf<String?>(null) }
+    var refreshing by remember(businessId) { mutableStateOf(false) }
+    var reloadKey by remember(businessId) { mutableStateOf(0) }
 
-    LaunchedEffect(repository, businessId, lang) {
-        loading = true
+    LaunchedEffect(repository, businessId, lang, reloadKey) {
+        // A pull keeps the current numbers on screen until the new ones land.
+        if (!refreshing) loading = true
         error = null
         val repo = repository
         if (repo == null) {
             loading = false
+            refreshing = false
             return@LaunchedEffect
         }
         runCatching { repo.loadAnalytics(businessId = businessId, lang = lang) }
-            .onSuccess { analytics = it; loading = false }
-            .onFailure { error = it.message; loading = false }
+            .onSuccess { analytics = it }
+            .onFailure { error = it.message }
+        loading = false
+        refreshing = false
     }
 
-    PageLayout(stringResource(Res.string.analytics_title), stringResource(Res.string.analytics_subtitle), onBack) {
+    PageLayout(
+        stringResource(Res.string.analytics_title),
+        stringResource(Res.string.analytics_subtitle),
+        onBack,
+        refreshing = refreshing,
+        onRefresh = { refreshing = true; reloadKey++ },
+    ) {
         when {
             loading -> Box(modifier = Modifier.fillMaxWidth().padding(T.d.lg), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = T.c.primary)
@@ -839,6 +905,8 @@ fun AnalyticsScreen(
 
             else -> {
                 val data = analytics!!
+                // A failed pull keeps the old numbers, so say why they did not change.
+                error?.let { Text(it, color = T.c.redError, style = T.t.t4SamiBold) }
                 InfoCard(
                     stringResource(Res.string.analytics_period_title),
                     "${data.periodStart} — ${data.periodEnd}",
@@ -894,8 +962,10 @@ private fun Double?.asGrowth(): String = if (this == null) "—" else "${if (thi
 fun ReviewsScreen(
     workspace: BusinessWorkspace?,
     onBack: () -> Unit,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
-    PageLayout(stringResource(Res.string.reviews_title), stringResource(Res.string.reviews_subtitle), onBack) {
+    PageLayout(stringResource(Res.string.reviews_title), stringResource(Res.string.reviews_subtitle), onBack, refreshing = refreshing, onRefresh = onRefresh) {
         val reviews = workspace?.reviews.orEmpty()
         InfoCard(
             title = "★ ${workspace?.rating.oneDecimal()}",

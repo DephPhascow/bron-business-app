@@ -211,6 +211,7 @@
     <string name="gallery_description_label">Title / description</string>
     <string name="orders_title">Orders list</string>
     <string name="orders_subtitle">Customer bookings for services.</string>
+    <string name="new_booking_title">New booking</string>
     <string name="order_title">Order</string>
     <string name="order_details_subtitle">Order details</string>
     <string name="order_client_title">Client</string>

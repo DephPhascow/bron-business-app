@@ -210,6 +210,7 @@
     <string name="gallery_description_label">Название / описание</string>
     <string name="orders_title">Список заказов</string>
     <string name="orders_subtitle">Записи клиентов на услуги.</string>
+    <string name="new_booking_title">Новая запись</string>
     <string name="order_title">Заказ</string>
     <string name="order_details_subtitle">Детали заказа</string>
     <string name="order_client_title">Клиент</string>

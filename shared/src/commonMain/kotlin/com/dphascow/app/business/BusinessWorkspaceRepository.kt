@@ -1,6 +1,7 @@
 package com.dphascow.app.business
 
 import com.dphascow.app.expects.PickedPhoto
+import kotlinx.coroutines.flow.Flow
 
 interface BusinessWorkspaceRepository {
     suspend fun loadBusinessWorkspace(
@@ -148,4 +149,21 @@ interface BusinessWorkspaceRepository {
     suspend fun addGalleryPhoto(businessId: String, photo: PickedPhoto)
 
     suspend fun deleteGalleryPhoto(businessId: String, imageId: String)
+
+    /**
+     * Bookings made with the signed-in user as the specialist, as they happen. Covers every
+     * salon the user works in, so filter by [NewBookingEvent.businessId]. Reconnects on its
+     * own for as long as it is collected.
+     */
+    fun observeNewBookings(): Flow<NewBookingEvent>
 }
+
+/** A booking that has just been made with the signed-in user as the specialist. */
+data class NewBookingEvent(
+    val bookingId: String,
+    val businessId: String,
+    val employeeId: String,
+    val clientUserId: String,
+    /** ISO date-time, as the server sends it. */
+    val bookingDate: String,
+)

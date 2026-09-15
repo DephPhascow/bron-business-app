@@ -16,6 +16,7 @@ import com.dphascow.app.graphql.DeleteGalleryImageMutation
 import com.dphascow.app.graphql.HireEmployeeMutation
 import com.dphascow.app.graphql.MarkBookingClientMissingMutation
 import com.dphascow.app.graphql.MyEmployeeBookingsQuery
+import com.dphascow.app.graphql.NewBookingSubscription
 import com.dphascow.app.graphql.RescheduleBookingMutation
 import com.dphascow.app.graphql.SetEmployeeSpecializationsMutation
 import com.dphascow.app.graphql.SpecialisationsQuery
@@ -34,11 +35,38 @@ import com.dphascow.app.graphql.type.UpdateServiceInput
 import com.dphascow.app.graphql.type.WorkTimeInput
 import com.dphascow.app.repositories.FileUploader
 import com.dphascow.app.repositories.Requester
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 class ApolloBusinessWorkspaceRepository(
     private val requester: Requester,
     private val fileUploader: FileUploader,
 ) : BusinessWorkspaceRepository {
+    override fun observeNewBookings(): Flow<NewBookingEvent> = flow {
+        var backoff = MIN_RECONNECT_DELAY
+        while (true) {
+            val startedAt = TimeSource.Monotonic.markNow()
+            // The server checks the token only when the socket opens, and access tokens live
+            // five minutes — so every reconnect has to ask for a current one.
+            val token = requester.tokenProvider.accessToken()
+            if (token != null) {
+                requester.requestSubscription(NewBookingSubscription(token = token)).collect { response ->
+                    response.data?.newBooking?.let { emit(it.toDomain()) }
+                }
+            }
+            // The stream only ends on a dropped socket, a rejected token or a missing session.
+            // Each reconnect also refreshes the token, and the server rate-limits that, so a
+            // dead network must not turn into a tight retry loop.
+            if (startedAt.elapsedNow() > STABLE_CONNECTION) backoff = MIN_RECONNECT_DELAY
+            delay(backoff)
+            backoff = (backoff * 2).coerceAtMost(MAX_RECONNECT_DELAY)
+        }
+    }
+
     override suspend fun loadBusinessWorkspace(
         businessId: String,
         lang: String,
@@ -605,3 +633,17 @@ class ApolloBusinessWorkspaceRepository(
     /** The `Time` scalar comes back as ISO time (e.g. "08:00:00"); the UI only needs "HH:mm". */
     private fun String.toHhMm(): String = if (length >= 5) substring(0, 5) else this
 }
+
+private fun NewBookingSubscription.NewBooking.toDomain(): NewBookingEvent = NewBookingEvent(
+    bookingId = bookingId.toString(),
+    businessId = businessId.toString(),
+    employeeId = employeeId.toString(),
+    clientUserId = clientUserId.toString(),
+    bookingDate = bookingDate,
+)
+
+private val MIN_RECONNECT_DELAY = 5.seconds
+private val MAX_RECONNECT_DELAY = 5.minutes
+
+/** A connection that lived this long was healthy, so the next drop starts the backoff over. */
+private val STABLE_CONNECTION = 1.minutes

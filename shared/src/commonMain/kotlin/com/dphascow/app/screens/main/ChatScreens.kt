@@ -65,16 +65,23 @@ fun ChatListScreen(
     var chats by remember { mutableStateOf<List<ChatSummary>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var refreshing by remember { mutableStateOf(false) }
+    var reloadKey by remember { mutableStateOf(0) }
 
-    LaunchedEffect(repository) {
+    LaunchedEffect(repository, reloadKey) {
         if (repository == null) {
             loading = false
+            refreshing = false
             return@LaunchedEffect
         }
-        loading = true
+        // A pull keeps the current list on screen until the new one lands.
+        if (!refreshing) loading = true
+        error = null
         runCatching { repository.loadChats() }
-            .onSuccess { chats = it; loading = false }
-            .onFailure { error = it.message; loading = false }
+            .onSuccess { chats = it }
+            .onFailure { error = it.message }
+        loading = false
+        refreshing = false
     }
 
     var query by remember { mutableStateOf("") }
@@ -82,7 +89,14 @@ fun ChatListScreen(
         chats.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
     }
     val openLabel = stringResource(Res.string.common_open)
-    LazyPageLayout(stringResource(Res.string.chat_title), stringResource(Res.string.chat_subtitle), onBack, onMenu) {
+    LazyPageLayout(
+        stringResource(Res.string.chat_title),
+        stringResource(Res.string.chat_subtitle),
+        onBack,
+        onMenu,
+        refreshing = refreshing,
+        onRefresh = { refreshing = true; reloadKey++ },
+    ) {
         item { SearchField(query) { query = it } }
         when {
             loading -> item { CircularProgressIndicator(color = T.c.primary) }

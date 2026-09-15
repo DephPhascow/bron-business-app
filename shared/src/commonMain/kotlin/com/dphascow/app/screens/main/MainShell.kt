@@ -16,6 +16,11 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -25,7 +30,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import com.dphascow.app.auth.AppUiState
 import com.dphascow.app.business.BusinessWorkspace
@@ -66,13 +73,17 @@ fun MainShell(
     var loading by remember(state.business.id) { mutableStateOf(true) }
     var loadError by remember(state.business.id) { mutableStateOf<String?>(null) }
     var reloadKey by remember(state.business.id) { mutableStateOf(0) }
+    // Set by pull-to-refresh: unlike [reload], the page stays on screen with the pull
+    // spinner instead of being swapped for the full-screen loading state.
+    var refreshing by remember(state.business.id) { mutableStateOf(false) }
 
     LaunchedEffect(state.business.id, lang, businessWorkspaceRepository, reloadKey) {
-        loading = true
+        if (!refreshing) loading = true
         loadError = null
         val repository = businessWorkspaceRepository
         if (repository == null) {
             loading = false
+            refreshing = false
             loadError = "No repository"
             return@LaunchedEffect
         }
@@ -80,19 +91,52 @@ fun MainShell(
             repository.loadBusinessWorkspace(businessId = state.business.id, lang = lang)
         }.onSuccess {
             workspace = it
-            loading = false
         }.onFailure {
             loadError = it.message
-            loading = false
         }
+        loading = false
+        refreshing = false
     }
     val reload = { reloadKey++ }
+    val refresh: () -> Unit = { refreshing = true; reloadKey++ }
 
     // The signed-in user — used e.g. to offer "add myself as an employee".
     LaunchedEffect(profileRepository) {
         val me = runCatching { profileRepository?.loadMe() }.getOrNull()
         currentUserId = me?.id
         currentUserPhone = me?.phone
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    // Bumped on every live new booking here, for screens that load their own data.
+    var bookingsSignal by remember(state.business.id) { mutableStateOf(0) }
+    // The subscription outlives recompositions, so it reads these through updated state.
+    val currentLang by rememberUpdatedState(lang)
+    val newBookingTitle by rememberUpdatedState(stringResource(Res.string.new_booking_title))
+    val openLabel by rememberUpdatedState(stringResource(Res.string.common_open))
+
+    LaunchedEffect(state.business.id, businessWorkspaceRepository) {
+        val repository = businessWorkspaceRepository ?: return@LaunchedEffect
+        repository.observeNewBookings()
+            // Events cover every salon the user works in; only this one is open.
+            .filter { it.businessId == state.business.id }
+            .collect { event ->
+                bookingsSignal++
+                // Quiet reload: the booking shows up in the lists without disturbing the
+                // current page, and is in the workspace by the time "Open" is tapped.
+                runCatching { repository.loadBusinessWorkspace(businessId = state.business.id, lang = currentLang) }
+                    .onSuccess { workspace = it }
+                launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "$newBookingTitle · ${event.bookingDate.shortBookingTime()}",
+                        actionLabel = openLabel,
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        navigator.open(AppRoute.OrderDetails(event.bookingId))
+                    }
+                }
+            }
     }
 
     val route = navigator.currentRoute
@@ -150,6 +194,16 @@ fun MainShell(
     Scaffold(
         // Same surface the pages draw on, so no seam shows around the bottom bar.
         containerColor = T.c.dark1,
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = T.c.graniteGreen7,
+                    contentColor = T.c.dark1,
+                    actionColor = T.c.dark1,
+                )
+            }
+        },
         bottomBar = {
             // Only the two root tabs carry the bar; pushed pages show a back arrow instead.
             if (route == AppRoute.Dashboard || route == AppRoute.Chats) {
@@ -187,6 +241,8 @@ fun MainShell(
 
             AppRoute.Employees -> EmployeesScreen(
                 workspace = workspace,
+                refreshing = refreshing,
+                onRefresh = refresh,
                 onBack = { navigator.back() },
                 onEmployeeClick = { navigator.open(AppRoute.EmployeeDetails(it)) },
                 onAddEmployeeClick = { navigator.open(AppRoute.EmployeeEdit()) },
@@ -194,6 +250,8 @@ fun MainShell(
 
             is AppRoute.EmployeeDetails -> EmployeeDetailsScreen(
                 employee = workspace?.employees?.firstOrNull { it.id == route.employeeId },
+                refreshing = refreshing,
+                onRefresh = refresh,
                 repository = businessWorkspaceRepository,
                 chatRepository = chatRepository,
                 businessId = state.business.id,
@@ -243,6 +301,8 @@ fun MainShell(
 
             AppRoute.Gallery -> GalleryScreen(
                 workspace = workspace,
+                refreshing = refreshing,
+                onRefresh = refresh,
                 repository = businessWorkspaceRepository,
                 onBack = { navigator.back() },
                 onUploadClick = { navigator.open(AppRoute.GalleryUpload) },
@@ -261,6 +321,8 @@ fun MainShell(
 
             AppRoute.Orders -> OrdersScreen(
                 workspace = workspace,
+                refreshing = refreshing,
+                onRefresh = refresh,
                 onBack = { navigator.back() },
                 onOrderClick = { navigator.open(AppRoute.OrderDetails(it)) },
                 onBookClientClick = { navigator.open(AppRoute.BookClient) },
@@ -268,6 +330,8 @@ fun MainShell(
 
             is AppRoute.OrderDetails -> OrderDetailsScreen(
                 workspace = workspace,
+                refreshing = refreshing,
+                onRefresh = refresh,
                 orderId = route.orderId,
                 businessId = state.business.id,
                 repository = businessWorkspaceRepository,
@@ -293,6 +357,7 @@ fun MainShell(
 
             AppRoute.MySchedule -> MyScheduleScreen(
                 repository = businessWorkspaceRepository,
+                bookingsSignal = bookingsSignal,
                 businessId = state.business.id,
                 lang = lang,
                 onBack = { navigator.back() },
@@ -307,6 +372,8 @@ fun MainShell(
 
             AppRoute.Reviews -> ReviewsScreen(
                 workspace = workspace,
+                refreshing = refreshing,
+                onRefresh = refresh,
                 onBack = { navigator.back() },
             )
 
@@ -372,4 +439,9 @@ private fun MainBottomBar(current: AppRoute, onSelect: (AppRoute) -> Unit) {
     }
 }
 
-
+/** "2026-09-21T10:00:00" → "21.09 10:00"; anything else is shown as it came. */
+private fun String.shortBookingTime(): String {
+    val date = substringBefore('T').split('-')
+    val time = substringAfter('T', "").take(5)
+    return if (date.size == 3 && time.length == 5) "${date[2]}.${date[1]} $time" else this
+}

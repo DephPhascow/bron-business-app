@@ -59,6 +59,8 @@ fun EmployeesScreen(
     onBack: () -> Unit,
     onEmployeeClick: (String) -> Unit,
     onAddEmployeeClick: () -> Unit,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     val employees = remember(workspace, query) {
@@ -67,7 +69,7 @@ fun EmployeesScreen(
     }
     val dismissedLabel = stringResource(Res.string.employee_dismissed_label)
     val openLabel = stringResource(Res.string.common_open)
-    LazyPageLayout(stringResource(Res.string.employees_title), stringResource(Res.string.employees_subtitle), onBack) {
+    LazyPageLayout(stringResource(Res.string.employees_title), stringResource(Res.string.employees_subtitle), onBack, refreshing = refreshing, onRefresh = onRefresh) {
         item {
             AccentPanel(
                 stringResource(Res.string.employees_add_title),
@@ -99,6 +101,8 @@ fun EmployeeDetailsScreen(
     onEditServiceClick: (String) -> Unit,
     onOpenConversation: (String) -> Unit,
     onDeleted: () -> Unit,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var deleting by remember { mutableStateOf(false) }
@@ -107,7 +111,7 @@ fun EmployeeDetailsScreen(
     var error by remember { mutableStateOf<String?>(null) }
 
     if (employee == null) {
-        PageLayout(stringResource(Res.string.employee_title_fallback), null, onBack) {
+        PageLayout(stringResource(Res.string.employee_title_fallback), null, onBack, refreshing = refreshing, onRefresh = onRefresh) {
             Text(stringResource(Res.string.employee_not_found), color = T.c.dark5, style = T.t.t2Regular)
         }
         return
@@ -115,7 +119,7 @@ fun EmployeeDetailsScreen(
 
     val contacts = listOfNotNull(employee.phone, employee.email).joinToString("\n").ifBlank { "—" }
 
-    PageLayout(employee.name, employee.role.label(), onBack) {
+    PageLayout(employee.name, employee.role.label(), onBack, refreshing = refreshing, onRefresh = onRefresh) {
         employee.avatarUrl?.let { url ->
             NetworkImage(
                 url = url,

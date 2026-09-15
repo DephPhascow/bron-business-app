@@ -13,6 +13,7 @@ import com.dphascow.app.graphql.type.MessageEnumType
 import com.dphascow.app.graphql.type.PaginationPageInput
 import com.dphascow.app.repositories.FileUploader
 import com.dphascow.app.repositories.Requester
+import com.dphascow.app.utils.extractAttachmentPath
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import settings.AuthPref
@@ -106,7 +107,8 @@ class ApolloChatRepository(
     private fun MessageFragment.toDomain(): ChatMessage = ChatMessage(
         id = pk.toString(),
         text = text,
-        fileUrl = fileUrl,
+        // Normalised here so the UI only ever sees a path or an absolute url.
+        fileUrl = extractAttachmentPath(fileUrl),
         type = type.toDomain(),
         isMine = isIAuthor,
         authorName = chatMember.user.fullName,

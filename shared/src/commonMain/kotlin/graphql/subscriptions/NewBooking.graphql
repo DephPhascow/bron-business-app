@@ -1,0 +1,9 @@
+subscription NewBooking($token: String!) {
+  newBooking(token: $token) {
+    bookingId
+    businessId
+    employeeId
+    clientUserId
+    bookingDate
+  }
+}
