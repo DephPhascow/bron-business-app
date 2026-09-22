@@ -294,4 +294,15 @@
     <string name="datetime_time_title">Time</string>
     <string name="settings_auto_enter_business">Auto-open business</string>
     <string name="settings_auto_enter_business_hint">Open the last business straight away. Turn off to be asked which one on every sign-in.</string>
+    <string name="common_unknown_error">Something went wrong. Try again.</string>
+    <string name="error_empty_response">The server returned no data. Try again.</string>
+    <string name="error_not_authenticated">Session expired. Sign in again.</string>
+    <string name="error_business_not_found">Business not found.</string>
+    <string name="error_logout_failed">Could not log out. Try again.</string>
+    <string name="error_booking_create_failed">Could not create the booking.</string>
+    <string name="error_gallery_delete_failed">Could not delete the photo.</string>
+    <string name="upload_file_too_large">The file is larger than %1$d MB.</string>
+    <string name="upload_unsupported_type">Unsupported file type. Allowed: %1$s.</string>
+    <string name="upload_failed">Could not upload the file: %1$s</string>
+    <string name="chat_file_fallback">File</string>
 </resources>

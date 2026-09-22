@@ -13,9 +13,12 @@ import com.dphascow.app.graphql.type.MessageEnumType
 import com.dphascow.app.graphql.type.PaginationPageInput
 import com.dphascow.app.repositories.FileUploader
 import com.dphascow.app.repositories.Requester
+import com.dphascow.app.resources.*
+import com.dphascow.app.resources.Res
 import com.dphascow.app.utils.extractAttachmentPath
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.jetbrains.compose.resources.getString
 import settings.AuthPref
 
 class ApolloChatRepository(
@@ -26,7 +29,7 @@ class ApolloChatRepository(
     override suspend fun loadChats(): List<ChatSummary> {
         val response = requester.requestQuery(MyChatsQuery(filters = Optional.Absent))
         val chats = response.data?.chatInstances
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty chats response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return chats.map { chat ->
             ChatSummary(
@@ -42,7 +45,7 @@ class ApolloChatRepository(
     override suspend fun startChatWith(userId: String): String {
         val response = requester.requestMutation(ShippingMutation(userId = userId.toIntRequired()))
         val chat = response.data?.shipping
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty start chat response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         return chat.pk.toString()
     }
 
@@ -54,7 +57,7 @@ class ApolloChatRepository(
             )
         )
         val page = response.data?.messages
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty messages response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return page.items.map { it.messageFragment.toDomain() }
     }
@@ -68,7 +71,7 @@ class ApolloChatRepository(
             )
         )
         val message = response.data?.sendMessage?.messageFragment
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty send message response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return message.toDomain()
     }
@@ -85,7 +88,7 @@ class ApolloChatRepository(
             )
         )
         val message = response.data?.sendMessage?.messageFragment
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty send file response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return message.toDomain()
     }

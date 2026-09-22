@@ -7,6 +7,9 @@ import com.dphascow.app.graphql.UpdateMeMutation
 import com.dphascow.app.graphql.type.UpdateUser
 import com.dphascow.app.repositories.FileUploader
 import com.dphascow.app.repositories.Requester
+import com.dphascow.app.resources.*
+import com.dphascow.app.resources.Res
+import org.jetbrains.compose.resources.getString
 
 class ApolloProfileRepository(
     private val requester: Requester,
@@ -15,7 +18,7 @@ class ApolloProfileRepository(
     override suspend fun loadMe(): MeProfile {
         val response = requester.requestQuery(MeQuery())
         val me = response.data?.me
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty me response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return MeProfile(
             id = me.pk.toString(),
@@ -48,7 +51,7 @@ class ApolloProfileRepository(
         )
         val response = requester.requestMutation(UpdateMeMutation(input = input))
         val me = response.data?.updateMe
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update me response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return MeProfile(
             id = me.pk.toString(),

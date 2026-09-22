@@ -293,4 +293,15 @@
     <string name="datetime_time_title">Время</string>
     <string name="settings_auto_enter_business">Автовход в бизнес</string>
     <string name="settings_auto_enter_business_hint">Сразу открывать последний бизнес. Снимите галочку — при каждом входе будем спрашивать, какой открыть.</string>
+    <string name="common_unknown_error">Что-то пошло не так. Попробуйте снова.</string>
+    <string name="error_empty_response">Сервер не вернул данные. Попробуйте снова.</string>
+    <string name="error_not_authenticated">Сессия истекла. Войдите снова.</string>
+    <string name="error_business_not_found">Бизнес не найден.</string>
+    <string name="error_logout_failed">Не удалось выйти. Попробуйте снова.</string>
+    <string name="error_booking_create_failed">Не удалось создать запись.</string>
+    <string name="error_gallery_delete_failed">Не удалось удалить фото.</string>
+    <string name="upload_file_too_large">Файл больше %1$d МБ.</string>
+    <string name="upload_unsupported_type">Неподдерживаемый тип файла. Допустимые: %1$s.</string>
+    <string name="upload_failed">Не удалось загрузить файл: %1$s</string>
+    <string name="chat_file_fallback">Файл</string>
 </resources>

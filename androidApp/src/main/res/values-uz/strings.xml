@@ -1,0 +1,4 @@
+<resources>
+    <string name="notification_channel_messages">Xabarlar</string>
+    <string name="notification_channel_messages_description">Kiruvchi xabarlar</string>
+</resources>

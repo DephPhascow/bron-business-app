@@ -1,0 +1,4 @@
+<resources>
+    <string name="notification_channel_messages">Messages</string>
+    <string name="notification_channel_messages_description">Incoming messages</string>
+</resources>

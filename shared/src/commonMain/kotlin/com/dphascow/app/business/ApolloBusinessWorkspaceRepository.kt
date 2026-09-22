@@ -35,12 +35,15 @@ import com.dphascow.app.graphql.type.UpdateServiceInput
 import com.dphascow.app.graphql.type.WorkTimeInput
 import com.dphascow.app.repositories.FileUploader
 import com.dphascow.app.repositories.Requester
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import com.dphascow.app.resources.*
+import com.dphascow.app.resources.Res
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import org.jetbrains.compose.resources.getString
 
 class ApolloBusinessWorkspaceRepository(
     private val requester: Requester,
@@ -77,7 +80,7 @@ class ApolloBusinessWorkspaceRepository(
         val response = requester.requestQuery(BusinessWorkspaceQuery(businessId = businessPk, lang = lang))
 
         val business = response.data?.business
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty business workspace response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return BusinessWorkspace(
             id = business.pk.toString(),
@@ -126,7 +129,7 @@ class ApolloBusinessWorkspaceRepository(
     override suspend fun loadSpecialisations(lang: String): List<Specialisation> {
         val response = requester.requestQuery(SpecialisationsQuery(lang = lang))
         val list = response.data?.specialisations
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty specialisations response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return list.map { item ->
             Specialisation(
@@ -157,7 +160,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         val employee = response.data?.hireEmployee
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty hire employee response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return employee.employeeFields.toDomain()
     }
@@ -177,7 +180,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         val employee = response.data?.updateEmployeeRole
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update role response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return employee.employeeFields.toDomain()
     }
@@ -198,7 +201,7 @@ class ApolloBusinessWorkspaceRepository(
         )
         val list = response.data?.setEmployeeSpecializations
             ?: throw IllegalStateException(
-                response.errors?.firstOrNull()?.message ?: "Empty set specialisations response"
+                response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response)
             )
 
         return list.filterNotNull().map { spec ->
@@ -214,14 +217,14 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         if (response.data?.deleteEmployee == null) {
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty delete employee response")
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         }
     }
 
     override suspend fun loadCategories(lang: String): List<ServiceCategory> {
         val response = requester.requestQuery(CategoriesQuery(lang = lang))
         val list = response.data?.categories
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty categories response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return list.map { item ->
             ServiceCategory(id = item.pk.toString(), name = item.name.orEmpty().ifBlank { "#${item.pk}" })
@@ -255,7 +258,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         val service = response.data?.addServiceToEmployee
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add service response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return service.serviceFields.toDomain()
     }
@@ -287,7 +290,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         val service = response.data?.updateEmployeeService
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update service response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return service.serviceFields.toDomain()
     }
@@ -300,7 +303,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         if (response.data?.deleteEmployeeService == null) {
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty delete service response")
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         }
     }
 
@@ -312,7 +315,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         if (response.data?.completeBooking == null) {
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty complete booking response")
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         }
     }
 
@@ -324,7 +327,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         if (response.data?.markBookingClientMissing == null) {
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty no-show response")
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         }
     }
 
@@ -336,7 +339,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         if (response.data?.cancelBookingBySalon == null) {
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty cancel booking response")
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         }
     }
 
@@ -346,7 +349,7 @@ class ApolloBusinessWorkspaceRepository(
         )
         if (response.data?.rescheduleBooking == null) {
             // The server explains why: busy specialist, closed salon, past time, cancelled booking.
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty reschedule response")
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         }
     }
 
@@ -369,9 +372,9 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         val result = response.data?.bookClientForDate
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty booking response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         // This one reports failures through the payload rather than GraphQL errors.
-        if (!result.status) throw IllegalStateException(result.message.ifBlank { "Could not create the booking" })
+        if (!result.status) throw IllegalStateException(result.message.ifBlank { getString(Res.string.error_booking_create_failed) })
     }
 
     override suspend fun loadMyBookings(
@@ -389,7 +392,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         val list = response.data?.myEmployeeBookings
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty schedule response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return list.map { booking ->
             EmployeeBooking(
@@ -427,7 +430,7 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         val data = response.data?.analytics
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty analytics response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return BusinessAnalytics(
             periodStart = data.periodStart,
@@ -500,7 +503,7 @@ class ApolloBusinessWorkspaceRepository(
             UpdateBusinessMutation(pk = businessId.toIntRequired("business id"), input = input)
         )
         if (response.data?.updateBusiness == null) {
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty update business response")
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         }
     }
 
@@ -510,7 +513,7 @@ class ApolloBusinessWorkspaceRepository(
             AddGalleryImageMutation(businessId = businessId.toIntRequired("business id"), imageUrl = imageUrl)
         )
         if (response.data?.addGalleryImage == null) {
-            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add gallery image response")
+            throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
         }
     }
 
@@ -522,8 +525,8 @@ class ApolloBusinessWorkspaceRepository(
             )
         )
         val result = response.data?.deleteGalleryImage
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty delete image response")
-        if (!result.status) throw IllegalStateException(result.message.ifBlank { "Could not delete the image" })
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
+        if (!result.status) throw IllegalStateException(result.message.ifBlank { getString(Res.string.error_gallery_delete_failed) })
     }
 
     /** Maps the `EmployeeFields` GraphQL fragment into the domain [BusinessEmployee]. */

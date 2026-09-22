@@ -44,6 +44,7 @@ import com.dphascow.app.ui.NetworkImage
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import ui.theme.T
 
@@ -225,7 +226,7 @@ fun EmployeeDetailsScreen(
                 scope.launch {
                     runCatching { repo.deleteEmployee(businessId, employee.id) }
                         .onSuccess { onDeleted() }
-                        .onFailure { deleting = false; error = it.message ?: "Error" }
+                        .onFailure { deleting = false; error = it.message ?: getString(Res.string.common_unknown_error) }
                 }
             },
             onDismiss = { confirmDelete = false },

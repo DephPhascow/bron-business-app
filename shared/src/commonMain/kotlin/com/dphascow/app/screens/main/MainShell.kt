@@ -44,6 +44,7 @@ import com.dphascow.app.navigation.MainNavigator
 import com.dphascow.app.profile.ProfileRepository
 import com.dphascow.app.resources.Res
 import com.dphascow.app.resources.*
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import settings.ThemeMode
 import ui.theme.T
@@ -84,7 +85,7 @@ fun MainShell(
         if (repository == null) {
             loading = false
             refreshing = false
-            loadError = "No repository"
+            loadError = getString(Res.string.workspace_load_error)
             return@LaunchedEffect
         }
         runCatching {

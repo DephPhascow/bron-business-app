@@ -291,7 +291,7 @@ private fun MessageBubble(message: ChatMessage) {
                             modifier = Modifier.fillMaxWidth().aspectRatio(1.3f).clip(RoundedCornerShape(T.d.sm)),
                         )
                     } else {
-                        Text("📎 ${message.fileName()}", color = textColor, style = T.t.t2Regular)
+                        Text("📎 ${message.fileName(stringResource(Res.string.chat_file_fallback))}", color = textColor, style = T.t.t2Regular)
                     }
                     message.text?.takeIf { it.isNotBlank() }?.let {
                         Text(it, color = textColor, style = T.t.t2Regular)
@@ -313,5 +313,5 @@ private fun MessageBubble(message: ChatMessage) {
 
 private fun ChatMessage.time(): String = createdAt.substringAfter('T', "").take(5)
 
-private fun ChatMessage.fileName(): String =
-    fileUrl?.substringAfterLast('/')?.ifBlank { "file" } ?: "file"
+private fun ChatMessage.fileName(fallback: String): String =
+    fileUrl?.substringAfterLast('/')?.ifBlank { fallback } ?: fallback

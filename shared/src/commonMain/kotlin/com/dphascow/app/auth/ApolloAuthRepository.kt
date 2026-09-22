@@ -4,6 +4,9 @@ import com.dphascow.app.expects.PickedPhoto
 import com.dphascow.app.graphql.MeForAuthQuery
 import com.dphascow.app.graphql.VerifyCodeMutation
 import com.dphascow.app.repositories.ApiAuthClient
+import com.dphascow.app.resources.*
+import com.dphascow.app.resources.Res
+import org.jetbrains.compose.resources.getString
 
 class ApolloAuthRepository(
     private val apiAuthClient: ApiAuthClient,
@@ -19,7 +22,7 @@ class ApolloAuthRepository(
         val response = apiAuthClient.verifyCode(phoneOrEmail = phoneOrEmail, code = code)
 
         val payload = response.data?.verifyCode
-            ?: throw IllegalArgumentException(response.errors?.firstOrNull()?.message ?: "Empty verify code response")
+            ?: throw IllegalArgumentException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         val businesses = payload.user?.toBusinessOptions().orEmpty()
             .ifEmpty { loadAuthorizedBusinesses(payload.accessToken) }
@@ -35,7 +38,7 @@ class ApolloAuthRepository(
     override suspend fun selectBusiness(businessId: String): BusinessSelectionResult {
         return BusinessSelectionResult(
             business = knownBusinesses.firstOrNull { it.id == businessId }
-                ?: throw IllegalArgumentException("Business not found"),
+                ?: throw IllegalArgumentException(getString(Res.string.error_business_not_found)),
         )
     }
 
@@ -43,7 +46,7 @@ class ApolloAuthRepository(
         val response = apiAuthClient.addBusiness(name = name.trim())
 
         val business = response.data?.addBusiness
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty add business response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         val option = BusinessOption(
             id = business.pk.toString(),
@@ -72,14 +75,14 @@ class ApolloAuthRepository(
             message = result?.message ?: response.errors?.firstOrNull()?.message
         }
 
-        if (!status) throw IllegalStateException(message?.ifBlank { null } ?: "Could not log out")
+        if (!status) throw IllegalStateException(message?.ifBlank { null } ?: getString(Res.string.error_logout_failed))
     }
 
     private suspend fun loadAuthorizedBusinesses(token: String): List<BusinessOption> {
         val response = apiAuthClient.meForAuth(token = token)
 
         val user = response.data?.meForAuth
-            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: "Empty meForAuth response")
+            ?: throw IllegalStateException(response.errors?.firstOrNull()?.message ?: getString(Res.string.error_empty_response))
 
         return user.toBusinessOptions()
     }

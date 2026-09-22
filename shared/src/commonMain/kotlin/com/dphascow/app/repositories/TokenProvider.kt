@@ -3,9 +3,12 @@ package com.dphascow.app.repositories
 import com.apollographql.apollo.ApolloClient
 import com.dphascow.BuildKonfig
 import com.dphascow.app.graphql.RefreshTokenMutation
+import com.dphascow.app.resources.*
+import com.dphascow.app.resources.Res
 import com.dphascow.app.utils.PlatformLogger
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.jetbrains.compose.resources.getString
 import settings.AuthPref
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -33,7 +36,7 @@ class TokenProvider(
     }
 
     suspend fun requireAccessToken(forceRefresh: Boolean = false): String {
-        return accessToken(forceRefresh) ?: error("Not authenticated")
+        return accessToken(forceRefresh) ?: error(getString(Res.string.error_not_authenticated))
     }
 
     fun saveTokens(accessToken: String, refreshToken: String?) {

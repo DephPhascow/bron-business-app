@@ -1,6 +1,8 @@
 package com.dphascow.app.repositories
 
 import com.dphascow.BuildKonfig
+import com.dphascow.app.resources.*
+import com.dphascow.app.resources.Res
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.forms.formData
@@ -10,6 +12,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import org.jetbrains.compose.resources.getString
 
 /** What `/api/files/upload` gives back: [key] is what we persist, [url] is what we show. */
 data class UploadedFile(
@@ -46,14 +49,14 @@ class FileUploader(
 
     suspend fun upload(bytes: ByteArray, fileName: String?, mimeType: String?): UploadedFile {
         if (bytes.size > MAX_UPLOAD_BYTES) {
-            throw FileUploadException("File is larger than ${MAX_UPLOAD_BYTES / BYTES_IN_MB} MB")
+            throw FileUploadException(getString(Res.string.upload_file_too_large, MAX_UPLOAD_BYTES / BYTES_IN_MB))
         }
 
         // The server cross-checks the extension, the Content-Type and the file's own
         // leading bytes, and answers 415 when they disagree. The photo picker can hand
         // us a name with no extension at all, so derive one type from the content and
         // send a name, an extension and a Content-Type that all agree with it.
-        val extension = resolveExtension(bytes, fileName, mimeType)
+        val extension = resolveExtension(bytes, fileName, mimeType) ?: throw unsupportedType()
         val contentType = MIME_BY_EXTENSION.getValue(extension)
         val name = safeFileName(fileName, extension)
 
@@ -73,14 +76,14 @@ class FileUploader(
 
             val text = response.bodyAsText()
             when (response.status.value) {
-                401 -> throw IllegalStateException("Not authenticated")
-                413 -> throw FileUploadException("File is too large (max ${MAX_UPLOAD_BYTES / BYTES_IN_MB} MB)")
-                415 -> throw FileUploadException("Unsupported file type: ${ALLOWED_EXTENSIONS.joinToString(", ")}")
-                429 -> throw RateLimitException()
+                401 -> throw IllegalStateException(getString(Res.string.error_not_authenticated))
+                413 -> throw FileUploadException(getString(Res.string.upload_file_too_large, MAX_UPLOAD_BYTES / BYTES_IN_MB))
+                415 -> throw unsupportedType()
+                429 -> throw tooManyRequests()
             }
 
             val url = jsonField("url").find(text)?.groupValues?.get(1)
-                ?: throw FileUploadException("Upload failed: $text")
+                ?: throw FileUploadException(getString(Res.string.upload_failed, text))
             // `key` is what the backend wants stored; fall back to the url so an older
             // server that omits it still works.
             val key = jsonField("key").find(text)?.groupValues?.get(1) ?: url
@@ -92,7 +95,10 @@ class FileUploader(
     }
 
     private suspend fun requireToken(forceRefresh: Boolean): String =
-        tokenProvider.accessToken(forceRefresh) ?: throw IllegalStateException("Not authenticated")
+        tokenProvider.accessToken(forceRefresh) ?: throw IllegalStateException(getString(Res.string.error_not_authenticated))
+
+    private suspend fun unsupportedType() =
+        FileUploadException(getString(Res.string.upload_unsupported_type, ALLOWED_EXTENSIONS.joinToString(", ")))
 
     private suspend fun HttpClient.post(
         bytes: ByteArray,
@@ -149,16 +155,13 @@ class FileUploader(
         /**
          * The file's own signature wins: the picker's MIME type and the file name are
          * both hints (a screenshot renamed to `.jpg` is still a PNG) while the server
-         * goes by the bytes. HEIC and friends match nothing here and are refused
+         * goes by the bytes. HEIC and friends match nothing here (null) and are refused
          * locally instead of costing a round trip and a 415.
          */
-        fun resolveExtension(bytes: ByteArray, fileName: String?, mimeType: String?): String =
+        fun resolveExtension(bytes: ByteArray, fileName: String?, mimeType: String?): String? =
             sniffExtension(bytes)
                 ?: EXTENSION_BY_MIME[mimeType?.substringBefore(';')?.trim()?.lowercase()]
                 ?: fileName?.substringAfterLast('.', "")?.lowercase()?.takeIf { it in MIME_BY_EXTENSION }
-                ?: throw FileUploadException(
-                    "Unsupported file type: ${ALLOWED_EXTENSIONS.joinToString(", ")}"
-                )
 
         fun sniffExtension(bytes: ByteArray): String? = when {
             bytes.startsWith(0xFF, 0xD8, 0xFF) -> "jpg"
